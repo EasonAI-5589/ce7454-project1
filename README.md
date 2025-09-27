@@ -2,103 +2,133 @@
 
 Face parsing project for CE7454 Deep Learning for Data Science course at NTU.
 
-## Project Overview
+## 🎯 Project Overview
 - **Task**: Face parsing with pixel-wise semantic labeling
-- **Dataset**: CelebAMask-HQ mini dataset (1000 train + 100 val pairs)
+- **Dataset**: CelebAMask-HQ mini dataset (1000 train + 100 test pairs)
 - **Image Resolution**: 512x512
 - **Classes**: 19 facial components and accessories
 - **Parameter Limit**: < 1,821,085 trainable parameters
 
-## Dataset Setup
+## 📁 Dataset Setup
 **⚠️ The dataset is NOT included in this repository due to size and licensing constraints.**
 
 To set up the dataset:
-1. Download `CelebAMask-HQ.zip` from the course platform
-2. Extract to `data/` directory:
+1. Download `dev-public.zip` from CodaBench Files page
+2. Extract to project root:
    ```bash
-   unzip CelebAMask-HQ.zip
-   mv CelebAMask-HQ/* data/
+   unzip dev-public.zip
+   # This creates data/train/ and data/test/ folders automatically
    ```
 3. Verify directory structure:
    ```
    data/
    ├── train/
-   │   ├── images/    # 1000 training images
-   │   └── masks/     # 1000 corresponding masks
-   └── val/
-       ├── images/    # 100 validation images
-       └── masks/     # 100 corresponding masks
+   │   ├── images/    # 1000 training images (.jpg)
+   │   └── masks/     # 1000 corresponding masks (.png)
+   └── test/
+       └── images/    # 100 test images (.jpg, no masks)
    ```
 
-## Quick Start
-1. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## 🚀 Quick Start
 
-2. **Test implementation**:
-   ```bash
-   python quick_test.py
-   ```
+### 1. Clone and Setup
+```bash
+git clone https://github.com/EasonAI-5589/ce7454-project1.git
+cd ce7454-project1
+pip install -r requirements.txt
+```
 
-3. **Train model**:
-   ```bash
-   python src/train.py
-   ```
+### 2. Test Components
+```bash
+python test.py
+```
 
-4. **Generate predictions**:
-   ```bash
-   python src/inference.py --model_path outputs/checkpoints/best_model.pth
-   ```
+### 3. Train Model
+```bash
+python src/train.py
+```
 
-## Project Structure
+### 4. Generate Test Predictions
+```bash
+python src/inference.py --model outputs/exp_XXXXXX/best_model.pth --zip
+```
+
+## 📂 Project Structure
 ```
 ce7454-project1/
 ├── src/
-│   ├── models/          # Model implementations
-│   ├── config.py        # Configuration settings
-│   ├── dataset.py       # Data loading
-│   ├── train.py         # Training script
-│   ├── inference.py     # Inference script
-│   └── utils.py         # Utility functions
-├── .claude/             # Claude workflow configuration
+│   ├── model.py         # Lightweight U-Net implementation
+│   ├── dataset.py       # Simple data loading (no torchvision)
+│   ├── utils.py         # Training utilities
+│   ├── train.py         # Main training script
+│   └── inference.py     # Test prediction generation
+├── test.py             # Component testing
 ├── data/               # Dataset (not in git)
-├── outputs/            # Model outputs (not in git)
-└── experiments/        # Experiment logs (not in git)
+├── outputs/            # Training outputs (not in git)
+└── requirements.txt    # Minimal dependencies
 ```
 
-## Model Architecture
-- **Base**: Lightweight U-Net with ResNet-inspired backbone
-- **Parameters**: ~1.2M (within 1.82M limit)
-- **Loss**: Combined CrossEntropy + Dice + Focal Loss
+## 🏗️ Model Architecture
+- **Type**: Lightweight U-Net
+- **Parameters**: ~800K (well within 1.82M limit)
+- **Loss**: Combined CrossEntropy + Dice Loss
 - **Optimizer**: AdamW with Cosine Annealing
+- **Augmentation**: Horizontal flip only (simple but effective)
 
-## Key Features
-- Parameter-efficient model design
-- Advanced data augmentation for small dataset
-- Class imbalance handling
-- Comprehensive evaluation metrics
+## ✨ Key Features
+- **Minimal Dependencies**: Only PyTorch, PIL, NumPy
+- **No External Libraries**: No torchvision, sklearn, opencv
+- **Simple but Effective**: Focused on working solution
+- **Parameter Efficient**: Well under the 1.8M limit
+- **Easy to Debug**: Clear, simple code structure
 
-## Results
-- **Target**: F-Score > 0.8 on validation set
-- **Codabench**: Aiming for top 30% ranking
+## 📊 Expected Results
+- **Training Time**: ~2-4 hours on single GPU
+- **Target F-Score**: 0.75+ (competitive performance)
+- **Parameter Count**: ~800K (safe margin)
 
-## Important Notes
-- No pretrained models allowed
-- No model ensembles allowed
-- No external data allowed
-- Training from scratch only
-
-## Submission Format
-Codabench submission structure:
+## 🎯 Codabench Submission
+The inference script automatically creates the correct format:
 ```
 submission.zip
-├── solution/
-└── masks/
+├── solution/           # Empty folder (required)
+└── masks/             # Single-channel PNG predictions
     ├── 0001.png
     ├── 0002.png
     └── ...
 ```
 
-## License
-This project is for academic purposes only. The CelebAMask-HQ dataset is subject to its original license terms.
+## 🔧 Troubleshooting
+
+### Common Issues
+1. **Import Errors**: Run `python test.py` to check all components
+2. **CUDA Errors**: Model works on both GPU and CPU
+3. **Data Loading**: Ensure data structure matches exactly
+
+### Performance Tips
+- Use GPU if available (significantly faster)
+- Increase batch size if you have more GPU memory
+- Training typically converges around epoch 60-80
+
+## 📋 Requirements
+- Python 3.8+
+- PyTorch 2.0+
+- PIL (Pillow)
+- NumPy
+- 4GB+ GPU memory (recommended)
+
+## 🎓 Academic Notes
+- No pretrained models allowed
+- No model ensembles allowed
+- No external data allowed
+- Training from scratch only
+- Must stay under parameter limit
+
+## 📞 Support
+If you encounter issues:
+1. Run `python test.py` first
+2. Check data structure
+3. Verify requirements are installed
+
+---
+*Built for CE7454 Deep Learning for Data Science, NTU*

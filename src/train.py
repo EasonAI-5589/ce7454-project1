@@ -1,35 +1,49 @@
 """
-Full training script for CE7454 Face Parsing Project
-Uses all 1000 training images without validation split
+Face Parsing Training Script
+Minimal dependencies, complete training pipeline
 """
 import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import os
 import time
-from tqdm import tqdm
 
-from config import Config
-from dataset import get_dataloader, verify_dataset
-from models.simple_unet import get_simple_model, count_parameters
-from utils import CombinedLoss, calculate_f_score, pixel_accuracy, mean_iou
-from utils import save_checkpoint, create_experiment_dir
+from model import FaceParsingNet, count_parameters
+from dataset import get_dataloader
+from utils import CombinedLoss, calculate_f_score, pixel_accuracy
+from utils import save_checkpoint, create_output_dir, AverageMeter
+
+# Configuration
+CONFIG = {
+    'data_root': 'data',
+    'batch_size': 8,
+    'learning_rate': 1e-3,
+    'weight_decay': 1e-4,
+    'num_epochs': 100,
+    'num_classes': 19,
+    'image_size': 512,
+    'max_params': 1821085,
+    'save_every': 20,
+    'print_every': 10,
+}
 
 def train_epoch(model, dataloader, criterion, optimizer, device, epoch):
     """Train for one epoch"""
     model.train()
-    running_loss = 0.0
-    running_f_score = 0.0
-    running_pixel_acc = 0.0
 
-    pbar = tqdm(dataloader, desc=f'Epoch {epoch+1}')
-    for batch_idx, (images, masks) in enumerate(pbar):
+    losses = AverageMeter()
+    f_scores = AverageMeter()
+    accuracies = AverageMeter()
+
+    for batch_idx, (images, masks) in enumerate(dataloader):
         images, masks = images.to(device), masks.to(device)
 
+        # Forward pass
         optimizer.zero_grad()
         outputs = model(images)
         loss = criterion(outputs, masks)
 
+        # Backward pass
         loss.backward()
         optimizer.step()
 
@@ -37,150 +51,157 @@ def train_epoch(model, dataloader, criterion, optimizer, device, epoch):
         with torch.no_grad():
             pred = torch.argmax(outputs, dim=1)
             f_score = calculate_f_score(pred.cpu().numpy(), masks.cpu().numpy())
-            pixel_acc = pixel_accuracy(pred, masks)
+            accuracy = pixel_accuracy(pred, masks)
 
-        running_loss += loss.item()
-        running_f_score += f_score
-        running_pixel_acc += pixel_acc
+        # Update meters
+        losses.update(loss.item(), images.size(0))
+        f_scores.update(f_score, images.size(0))
+        accuracies.update(accuracy, images.size(0))
 
-        # Update progress bar
-        pbar.set_postfix({
-            'Loss': f'{loss.item():.4f}',
-            'F-Score': f'{f_score:.4f}',
-            'PixelAcc': f'{pixel_acc:.4f}'
-        })
+        # Print progress
+        if batch_idx % CONFIG['print_every'] == 0:
+            print(f'Epoch {epoch+1:3d} [{batch_idx:3d}/{len(dataloader):3d}] '
+                  f'Loss: {losses.avg:.4f} F-Score: {f_scores.avg:.4f} Acc: {accuracies.avg:.4f}')
 
-    num_batches = len(dataloader)
     return {
-        'loss': running_loss / num_batches,
-        'f_score': running_f_score / num_batches,
-        'pixel_acc': running_pixel_acc / num_batches
+        'loss': losses.avg,
+        'f_score': f_scores.avg,
+        'accuracy': accuracies.avg
     }
 
 def main():
     """Main training function"""
-    print("="*60)
-    print("CE7454 Face Parsing - Full Training (1000 images)")
-    print("="*60)
+    print("="*80)
+    print("CE7454 Face Parsing Training")
+    print("="*80)
 
-    # Create experiment directory
-    exp_dir = create_experiment_dir()
-    print(f"Experiment directory: {exp_dir}")
-
-    # Create necessary directories
-    Config.create_dirs()
-
-    # Verify dataset
-    print("\nVerifying dataset...")
-    verify_dataset(Config.DATA_ROOT)
-
-    # Device setup
+    # Setup device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"\nUsing device: {device}")
+    print(f"Device: {device}")
+
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name()}")
         print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
 
-    # Create data loader (only training, no validation)
-    print("\nCreating data loader...")
-    try:
-        train_loader = get_dataloader(Config.DATA_ROOT, split='train', batch_size=Config.BATCH_SIZE)
-        print(f"Training batches: {len(train_loader)}")
-        print(f"Total training samples: {len(train_loader.dataset)}")
-    except Exception as e:
-        print(f"Error creating data loader: {e}")
-        print("Please ensure dataset is properly structured.")
-        return
+    # Create output directory
+    output_dir = create_output_dir()
+    print(f"Output directory: {output_dir}")
 
     # Create model
     print("\nCreating model...")
-    model = get_simple_model('simple_unet', n_classes=Config.NUM_CLASSES)
-    model = model.to(device)
-
-    # Verify parameter count
+    model = FaceParsingNet(n_classes=CONFIG['num_classes'])
     param_count = count_parameters(model)
-    if param_count >= Config.MAX_PARAMS:
-        print(f"WARNING: Model has {param_count} parameters, exceeding limit of {Config.MAX_PARAMS}")
+
+    print(f"Model parameters: {param_count:,}")
+    print(f"Within limit: {param_count < CONFIG['max_params']}")
+
+    if param_count >= CONFIG['max_params']:
+        print(f"ERROR: Model exceeds parameter limit!")
         return
 
-    print(f"Model parameters: {param_count:,} (within limit: {param_count < Config.MAX_PARAMS})")
+    model = model.to(device)
 
-    # Loss function
+    # Create dataloader
+    print("\nCreating dataloader...")
+    try:
+        train_loader = get_dataloader(
+            CONFIG['data_root'],
+            split='train',
+            batch_size=CONFIG['batch_size'],
+            augment=True
+        )
+        print(f"Training samples: {len(train_loader.dataset)}")
+        print(f"Training batches: {len(train_loader)}")
+
+    except Exception as e:
+        print(f"ERROR creating dataloader: {e}")
+        print("Please ensure dataset is in 'data' directory with correct structure:")
+        print("data/train/images/ and data/train/masks/")
+        return
+
+    # Setup training
     criterion = CombinedLoss(ce_weight=1.0, dice_weight=0.5)
-
-    # Optimizer and scheduler
-    optimizer = optim.AdamW(model.parameters(), lr=Config.LEARNING_RATE, weight_decay=Config.WEIGHT_DECAY)
-    scheduler = CosineAnnealingLR(optimizer, T_max=Config.NUM_EPOCHS)
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=CONFIG['learning_rate'],
+        weight_decay=CONFIG['weight_decay']
+    )
+    scheduler = CosineAnnealingLR(optimizer, T_max=CONFIG['num_epochs'])
 
     # Training history
-    train_history = {'loss': [], 'f_score': [], 'pixel_acc': []}
+    history = {
+        'loss': [],
+        'f_score': [],
+        'accuracy': []
+    }
 
     best_f_score = 0.0
-    best_model_path = os.path.join(exp_dir, 'best_model.pth')
-    final_model_path = os.path.join(exp_dir, 'final_model.pth')
+    best_model_path = os.path.join(output_dir, 'best_model.pth')
 
-    print(f"\nStarting training for {Config.NUM_EPOCHS} epochs...")
-    print("="*60)
+    print(f"\nStarting training for {CONFIG['num_epochs']} epochs...")
+    print("-"*80)
 
     start_time = time.time()
 
-    for epoch in range(Config.NUM_EPOCHS):
-        print(f"\nEpoch {epoch+1}/{Config.NUM_EPOCHS}")
-        print("-" * 40)
+    for epoch in range(CONFIG['num_epochs']):
+        print(f"\nEpoch {epoch+1}/{CONFIG['num_epochs']}")
 
-        # Training
+        # Train
         train_metrics = train_epoch(model, train_loader, criterion, optimizer, device, epoch)
-        train_history['loss'].append(train_metrics['loss'])
-        train_history['f_score'].append(train_metrics['f_score'])
-        train_history['pixel_acc'].append(train_metrics['pixel_acc'])
 
-        # Learning rate scheduler
+        # Update history
+        history['loss'].append(train_metrics['loss'])
+        history['f_score'].append(train_metrics['f_score'])
+        history['accuracy'].append(train_metrics['accuracy'])
+
+        # Learning rate step
         scheduler.step()
         current_lr = scheduler.get_last_lr()[0]
 
-        # Print epoch results
-        print(f"Train - Loss: {train_metrics['loss']:.4f}, F-Score: {train_metrics['f_score']:.4f}, PixelAcc: {train_metrics['pixel_acc']:.4f}")
-        print(f"LR: {current_lr:.6f}")
+        # Print epoch summary
+        print(f"Summary - Loss: {train_metrics['loss']:.4f} "
+              f"F-Score: {train_metrics['f_score']:.4f} "
+              f"Accuracy: {train_metrics['accuracy']:.4f} "
+              f"LR: {current_lr:.6f}")
 
-        # Save best model based on F-Score
+        # Save best model
         if train_metrics['f_score'] > best_f_score:
             best_f_score = train_metrics['f_score']
             save_checkpoint(model, optimizer, epoch, train_metrics['loss'], best_model_path)
             print(f"✓ New best model saved! F-Score: {best_f_score:.4f}")
 
-        # Save checkpoint every 20 epochs
-        if (epoch + 1) % 20 == 0:
-            checkpoint_path = os.path.join(exp_dir, f'checkpoint_epoch_{epoch+1}.pth')
+        # Save checkpoint
+        if (epoch + 1) % CONFIG['save_every'] == 0:
+            checkpoint_path = os.path.join(output_dir, f'checkpoint_epoch_{epoch+1}.pth')
             save_checkpoint(model, optimizer, epoch, train_metrics['loss'], checkpoint_path)
-            print(f"✓ Checkpoint saved: {checkpoint_path}")
 
-    # Save final model
-    save_checkpoint(model, optimizer, Config.NUM_EPOCHS-1, train_history['loss'][-1], final_model_path)
+    # Final model
+    final_model_path = os.path.join(output_dir, 'final_model.pth')
+    save_checkpoint(model, optimizer, CONFIG['num_epochs']-1,
+                   history['loss'][-1], final_model_path)
 
-    # Training completed
+    # Training summary
     end_time = time.time()
     training_time = end_time - start_time
 
-    print("\n" + "="*60)
+    print("\n" + "="*80)
     print("Training Completed!")
-    print(f"Training time: {training_time/3600:.2f} hours")
-    print(f"Best training F-Score: {best_f_score:.4f}")
-    print(f"Final training F-Score: {train_history['f_score'][-1]:.4f}")
-    print(f"Best model saved at: {best_model_path}")
-    print(f"Final model saved at: {final_model_path}")
-    print("="*60)
+    print(f"Total time: {training_time/3600:.2f} hours")
+    print(f"Best F-Score: {best_f_score:.4f}")
+    print(f"Final F-Score: {history['f_score'][-1]:.4f}")
+    print(f"Best model: {best_model_path}")
+    print(f"Final model: {final_model_path}")
 
-    # Save training history
-    import pickle
-    history_path = os.path.join(exp_dir, 'training_history.pkl')
-    with open(history_path, 'wb') as f:
-        pickle.dump({'train': train_history}, f)
+    # Save history
+    import json
+    history_path = os.path.join(output_dir, 'history.json')
+    with open(history_path, 'w') as f:
+        json.dump(history, f, indent=2)
 
     print(f"\nNext steps:")
-    print(f"1. Use best model for inference: {best_model_path}")
-    print(f"2. Generate test predictions: python src/inference.py --model_path {best_model_path}")
-
-    return best_f_score, best_model_path
+    print(f"1. Use model for inference: python src/inference.py --model {best_model_path}")
+    print(f"2. Generate test predictions for Codabench submission")
+    print("="*80)
 
 if __name__ == "__main__":
     main()
