@@ -1,11 +1,19 @@
 {
+  "env": {
+    "http_proxy": "http://127.0.0.1:7890",
+    "https_proxy": "http://127.0.0.1:7890"
+  },
   "permissions": {
     "allow": [
       "WebFetch(domain:www.codabench.org)",
       "WebSearch",
       "Read(//Users/guoyichen/Downloads/**)",
       "Bash(unzip:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git push:*)",
+      "Bash(npm i:*)",
+      "Bash(tree:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

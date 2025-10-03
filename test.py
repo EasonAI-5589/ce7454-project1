@@ -1,156 +1,114 @@
+#!/usr/bin/env python3
 """
-Test all components before training
+Test script for evaluating trained model
 """
-import sys
-import os
 
-# Add src to path
-sys.path.append('src')
+import argparse
+import torch
+import yaml
+from pathlib import Path
+from tqdm import tqdm
+from src.dataset import FaceParsingDataset
+from src.models.microsegformer import MicroSegFormer
+from torch.utils.data import DataLoader
 
-def test_model():
-    """Test model creation"""
-    print("="*50)
-    print("Testing Model")
-    print("="*50)
 
-    try:
-        from model import test_model
-        return test_model()
-    except Exception as e:
-        print(f"✗ Model test failed: {e}")
-        return False
+def compute_metrics(pred, target, num_classes=19):
+    """Compute F-Score metrics"""
+    pred = pred.argmax(dim=1)  # B x H x W
 
-def test_dataset():
-    """Test dataset loading"""
-    print("\n" + "="*50)
-    print("Testing Dataset")
-    print("="*50)
+    f_scores = []
+    for cls in range(num_classes):
+        pred_mask = (pred == cls)
+        target_mask = (target == cls)
 
-    try:
-        from dataset import test_dataset
-        return test_dataset()
-    except Exception as e:
-        print(f"✗ Dataset test failed: {e}")
-        return False
+        intersection = (pred_mask & target_mask).sum().float()
+        pred_sum = pred_mask.sum().float()
+        target_sum = target_mask.sum().float()
 
-def test_utils():
-    """Test utility functions"""
-    print("\n" + "="*50)
-    print("Testing Utils")
-    print("="*50)
-
-    try:
-        from utils import test_utils
-        test_utils()
-        return True
-    except Exception as e:
-        print(f"✗ Utils test failed: {e}")
-        return False
-
-def check_requirements():
-    """Check basic requirements"""
-    print("="*50)
-    print("Checking Requirements")
-    print("="*50)
-
-    requirements = [
-        ('torch', 'PyTorch'),
-        ('PIL', 'Pillow'),
-        ('numpy', 'NumPy'),
-    ]
-
-    all_good = True
-    for module, name in requirements:
-        try:
-            __import__(module)
-            print(f"✓ {name}")
-        except ImportError:
-            print(f"✗ {name} - Install with: pip install {module}")
-            all_good = False
-
-    # Check CUDA
-    try:
-        import torch
-        if torch.cuda.is_available():
-            print(f"✓ CUDA available: {torch.cuda.get_device_name()}")
+        if pred_sum + target_sum == 0:
+            f_scores.append(1.0)  # Perfect score if class not present
         else:
-            print("⚠ CUDA not available (will use CPU)")
-    except:
-        print("✗ Cannot check CUDA")
+            precision = intersection / (pred_sum + 1e-10)
+            recall = intersection / (target_sum + 1e-10)
+            f1 = 2 * precision * recall / (precision + recall + 1e-10)
+            f_scores.append(f1.item())
 
-    return all_good
+    return sum(f_scores) / len(f_scores)
 
-def check_data_structure():
-    """Check dataset structure"""
-    print("\n" + "="*50)
-    print("Checking Data Structure")
-    print("="*50)
 
-    data_root = "data"
-    required_dirs = [
-        "data/train/images",
-        "data/train/masks",
-        "data/test/images"
-    ]
+def test_model(checkpoint_path, device='cuda'):
+    """Test model on validation set"""
 
-    all_good = True
-    for dir_path in required_dirs:
-        if os.path.exists(dir_path):
-            count = len([f for f in os.listdir(dir_path)
-                        if f.endswith(('.jpg', '.png'))])
-            print(f"✓ {dir_path}: {count} files")
-        else:
-            print(f"✗ {dir_path}: Not found")
-            all_good = False
+    # Load checkpoint
+    checkpoint = torch.load(checkpoint_path, map_location=device)
 
-    if not all_good:
-        print("\nTo fix data structure:")
-        print("1. Download dev-public.zip from CodaBench")
-        print("2. Extract to project root")
-        print("3. Should create data/train/ and data/test/ folders")
+    # Get config from checkpoint or use default
+    if 'config' in checkpoint:
+        config = checkpoint['config']
+    else:
+        # Default config
+        with open('configs/main.yaml', 'r') as f:
+            config = yaml.safe_load(f)
 
-    return all_good
+    # Setup model
+    model = MicroSegFormer(num_classes=config['model']['num_classes'])
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model = model.to(device)
+    model.eval()
+
+    print(f"Loaded model from: {checkpoint_path}")
+    if 'epoch' in checkpoint:
+        print(f"Epoch: {checkpoint['epoch']}")
+    if 'best_f_score' in checkpoint:
+        print(f"Best F-Score: {checkpoint['best_f_score']:.4f}")
+
+    # Setup dataset
+    dataset = FaceParsingDataset(
+        root=config['data']['root'],
+        split='val',
+        augment=False
+    )
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=config['data']['batch_size'],
+        shuffle=False,
+        num_workers=config['data']['num_workers']
+    )
+
+    print(f"\nValidation set size: {len(dataset)}")
+
+    # Test
+    total_f_score = 0
+    with torch.no_grad():
+        for images, masks in tqdm(dataloader, desc='Testing'):
+            images = images.to(device)
+            masks = masks.to(device)
+
+            outputs = model(images)
+            f_score = compute_metrics(outputs, masks, config['model']['num_classes'])
+            total_f_score += f_score
+
+    avg_f_score = total_f_score / len(dataloader)
+    print(f"\nValidation F-Score: {avg_f_score:.4f}")
+
+    return avg_f_score
+
 
 def main():
-    """Run all tests"""
-    print("CE7454 Face Parsing - Component Tests")
+    parser = argparse.ArgumentParser(description='Test face parsing model')
+    parser.add_argument('--checkpoint', type=str, required=True,
+                        help='Path to checkpoint file')
+    parser.add_argument('--device', type=str, default='cuda',
+                        help='Device to use (cuda/cpu)')
+    args = parser.parse_args()
 
-    tests = [
-        ("Requirements", check_requirements),
-        ("Data Structure", check_data_structure),
-        ("Model", test_model),
-        ("Dataset", test_dataset),
-        ("Utils", test_utils),
-    ]
+    device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}\n")
 
-    results = []
-    for test_name, test_func in tests:
-        try:
-            result = test_func()
-            results.append((test_name, result))
-        except Exception as e:
-            print(f"✗ {test_name} test crashed: {e}")
-            results.append((test_name, False))
+    test_model(args.checkpoint, device)
 
-    # Summary
-    print("\n" + "="*50)
-    print("Test Summary")
-    print("="*50)
 
-    all_passed = True
-    for test_name, result in results:
-        status = "✓ PASS" if result else "✗ FAIL"
-        print(f"{test_name:<15}: {status}")
-        if not result:
-            all_passed = False
-
-    print("\n" + "="*50)
-    if all_passed:
-        print("🎉 All tests passed! Ready to train!")
-        print("Run: python src/train.py")
-    else:
-        print("❌ Some tests failed. Please fix issues before training.")
-        print("Check error messages above for guidance.")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

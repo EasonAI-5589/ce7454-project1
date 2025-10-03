@@ -1,0 +1,39 @@
+# Configuration for MicroSegFormer (main model)
+
+model:
+  name: microsegformer
+  num_classes: 19
+
+data:
+  root: data
+  batch_size: 8
+  num_workers: 4
+  val_split: 0.1
+
+training:
+  epochs: 150
+  optimizer: AdamW
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: 20
+  use_amp: false  # Mixed precision training (optional)
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 0.5
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  scale_range: [0.9, 1.1]
+
+experiment:
+  name: baseline_microsegformer
+  description: "Main Transformer model with 1.72M parameters (94.6% usage)"

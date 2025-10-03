@@ -20,7 +20,7 @@ Face parsing assigns pixel- wise labels for each semantic components, e.g., eyes
 
 The performance of the network will be evaluated based on the F- Score between the predicted masks and the ground truth of the test set (the ground truth of the test set will not be released).
 
-![](images/5c13be6090c5fce1eed1515a7959c791598eddfa426809da797b2239de039523.jpg)  
+![](../images/5c13be6090c5fce1eed1515a7959c791598eddfa426809da797b2239de039523.jpg)  
 Figure 1. Sample images in CelebAMask-HQ
 
 # Assessment Criteria
