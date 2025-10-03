@@ -7,10 +7,13 @@ CE7454 Face Parsing Project
 import argparse
 import yaml
 import torch
-from pathlib import Path
-from src.trainer import Trainer
-from src.dataset import FaceParsingDataset
+import os
+from datetime import datetime
+
+from src.trainer import Trainer, create_optimizer, create_scheduler
+from src.dataset import create_train_val_loaders
 from src.models.microsegformer import MicroSegFormer
+from src.utils import CombinedLoss
 
 
 def load_config(config_path):
@@ -31,6 +34,14 @@ def setup_model(config):
         raise ValueError(f"Unknown model: {model_name}")
 
     return model
+
+
+def create_output_dir(base_dir='checkpoints'):
+    """Create timestamped output directory"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_dir = os.path.join(base_dir, f'microsegformer_{timestamp}')
+    os.makedirs(output_dir, exist_ok=True)
+    return output_dir
 
 
 def main():
@@ -72,22 +83,73 @@ def main():
     if total_params > param_limit:
         raise ValueError(f"Model exceeds parameter limit! {total_params:,} > {param_limit:,}")
 
+    # Create data loaders
+    print("\nLoading dataset...")
+    train_loader, val_loader = create_train_val_loaders(
+        data_root=config['data']['root'],
+        batch_size=config['data']['batch_size'],
+        num_workers=config['data']['num_workers'],
+        val_split=config['data']['val_split']
+    )
+
+    print(f"Train batches: {len(train_loader)}")
+    print(f"Val batches: {len(val_loader)}")
+
+    # Create loss function
+    criterion = CombinedLoss(
+        ce_weight=config['loss']['ce_weight'],
+        dice_weight=config['loss']['dice_weight']
+    )
+
+    # Create optimizer
+    optimizer = create_optimizer(model, config['training'])
+
+    # Create scheduler
+    scheduler = create_scheduler(optimizer, config['training'], config['training']['epochs'])
+
+    # Create output directory
+    output_dir = create_output_dir()
+    config['output_dir'] = output_dir
+
+    print(f"\nOutput directory: {output_dir}")
+
+    # Save config
+    config_path = os.path.join(output_dir, 'config.yaml')
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+    print(f"Config saved to: {config_path}")
+
     # Setup trainer
     trainer = Trainer(
         model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        criterion=criterion,
+        optimizer=optimizer,
+        scheduler=scheduler,
         config=config,
-        device=device,
-        resume_checkpoint=args.resume
+        device=device
     )
+
+    # Load checkpoint if resuming
+    if args.resume:
+        print(f"\nLoading checkpoint from: {args.resume}")
+        checkpoint = torch.load(args.resume, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if scheduler and checkpoint.get('scheduler_state_dict'):
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        print(f"Resumed from epoch {checkpoint['epoch']}")
 
     # Start training
     print(f"\nStarting training: {config['experiment']['name']}")
     print(f"Description: {config['experiment']['description']}")
-    print("-" * 80)
+    print("=" * 80)
 
-    trainer.train()
+    trainer.fit(epochs=config['training']['epochs'])
 
-    print("\nTraining completed!")
+    print("\n✓ Training completed!")
+    print(f"Best model saved at: {trainer.best_model_path}")
 
 
 if __name__ == '__main__':

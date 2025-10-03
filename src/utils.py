@@ -9,6 +9,12 @@ import os
 
 def calculate_f_score(pred, target, num_classes=19, eps=1e-8):
     """Calculate F-Score for segmentation"""
+    # Convert to numpy if tensor
+    if hasattr(pred, 'cpu'):
+        pred = pred.cpu().numpy()
+    if hasattr(target, 'cpu'):
+        target = target.cpu().numpy()
+
     pred = pred.flatten()
     target = target.flatten()
 
@@ -17,15 +23,15 @@ def calculate_f_score(pred, target, num_classes=19, eps=1e-8):
         pred_cls = (pred == cls)
         target_cls = (target == cls)
 
-        tp = (pred_cls & target_cls).sum().float()
-        fp = (pred_cls & ~target_cls).sum().float()
-        fn = (~pred_cls & target_cls).sum().float()
+        tp = float((pred_cls & target_cls).sum())
+        fp = float((pred_cls & ~target_cls).sum())
+        fn = float((~pred_cls & target_cls).sum())
 
         precision = tp / (tp + fp + eps)
         recall = tp / (tp + fn + eps)
         f_score = 2 * precision * recall / (precision + recall + eps)
 
-        f_scores.append(f_score.item())
+        f_scores.append(f_score)
 
     return np.mean(f_scores)
 

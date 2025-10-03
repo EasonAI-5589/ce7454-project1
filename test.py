@@ -8,9 +8,8 @@ import torch
 import yaml
 from pathlib import Path
 from tqdm import tqdm
-from src.dataset import FaceParsingDataset
+from src.dataset import create_train_val_loaders
 from src.models.microsegformer import MicroSegFormer
-from torch.utils.data import DataLoader
 
 
 def compute_metrics(pred, target, num_classes=19):
@@ -63,34 +62,32 @@ def test_model(checkpoint_path, device='cuda'):
     if 'best_f_score' in checkpoint:
         print(f"Best F-Score: {checkpoint['best_f_score']:.4f}")
 
-    # Setup dataset
-    dataset = FaceParsingDataset(
-        root=config['data']['root'],
-        split='val',
-        augment=False
-    )
-
-    dataloader = DataLoader(
-        dataset,
+    # Setup dataset - use validation split
+    print("\nLoading validation dataset...")
+    _, val_loader = create_train_val_loaders(
+        data_root=config['data']['root'],
         batch_size=config['data']['batch_size'],
-        shuffle=False,
-        num_workers=config['data']['num_workers']
+        num_workers=config['data']['num_workers'],
+        val_split=config['data']['val_split']
     )
 
-    print(f"\nValidation set size: {len(dataset)}")
+    print(f"Validation set: {len(val_loader.dataset)} samples")
 
     # Test
     total_f_score = 0
+    num_batches = 0
+
     with torch.no_grad():
-        for images, masks in tqdm(dataloader, desc='Testing'):
+        for images, masks in tqdm(val_loader, desc='Testing'):
             images = images.to(device)
             masks = masks.to(device)
 
             outputs = model(images)
             f_score = compute_metrics(outputs, masks, config['model']['num_classes'])
             total_f_score += f_score
+            num_batches += 1
 
-    avg_f_score = total_f_score / len(dataloader)
+    avg_f_score = total_f_score / num_batches
     print(f"\nValidation F-Score: {avg_f_score:.4f}")
 
     return avg_f_score
