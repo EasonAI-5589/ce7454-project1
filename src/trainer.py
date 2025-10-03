@@ -287,8 +287,8 @@ class Trainer:
 def create_optimizer(model, config):
     """Create optimizer from config"""
     optimizer_type = config.get('optimizer', 'AdamW')
-    lr = config.get('learning_rate', 1e-3)
-    weight_decay = config.get('weight_decay', 1e-4)
+    lr = float(config.get('learning_rate', 1e-3))  # Force float conversion for YAML scientific notation
+    weight_decay = float(config.get('weight_decay', 1e-4))
 
     if optimizer_type == 'AdamW':
         optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
