@@ -16,7 +16,7 @@ Face parsing with 19-class segmentation using MicroSegFormer (1.72M parameters).
 ## 🚀 服务器快速开始
 
 ```bash
-# 1. Clone代码
+# 1. Clone代码 (包含数据集)
 git clone https://github.com/EasonAI-5589/ce7454-project1.git
 cd ce7454-project1
 

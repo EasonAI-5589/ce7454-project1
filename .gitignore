@@ -1,5 +1,5 @@
 # Dataset files
-data/
+# data/  # Uncommented - include small dataset in git
 *.zip
 *.tar.gz
 
