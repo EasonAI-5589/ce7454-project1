@@ -8,8 +8,8 @@ import argparse
 from PIL import Image
 import numpy as np
 
-from model import FaceParsingNet
-from utils import load_checkpoint
+from .models.microsegformer import MicroSegFormer
+from .utils import load_checkpoint
 
 def predict_single_image(model, image_path, device, image_size=512):
     """Predict single image"""
@@ -38,7 +38,7 @@ def generate_test_predictions(model_path, data_root='data', output_dir='predicti
 
     # Load model
     print(f"Loading model from {model_path}")
-    model = FaceParsingNet(n_classes=19)
+    model = MicroSegFormer(num_classes=19)
     model = model.to(device)
 
     # Load checkpoint

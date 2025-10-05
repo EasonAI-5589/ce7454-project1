@@ -68,8 +68,8 @@ class FaceParsingDataset(Dataset):
         # Simple augmentation
         if self.augment and random.random() > 0.5:
             # Horizontal flip
-            image = np.fliplr(image)
-            mask = np.fliplr(mask)
+            image = np.fliplr(image).copy()
+            mask = np.fliplr(mask).copy()
 
         # Normalize image to [0, 1]
         image = image.astype(np.float32) / 255.0
@@ -85,12 +85,15 @@ def get_dataloader(data_root, split='train', batch_size=8, num_workers=2, augmen
     dataset = FaceParsingDataset(data_root, split=split, augment=augment)
 
     shuffle = (split == 'train')
+    # Only use pin_memory on CUDA devices (not supported on MPS)
+    pin_memory = torch.cuda.is_available()
+
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin_memory
     )
 
     return dataloader
@@ -110,21 +113,31 @@ def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0
     Returns:
         train_loader, val_loader
     """
-    from torch.utils.data import random_split
-
-    # Create full training dataset
-    full_dataset = FaceParsingDataset(data_root, split='train', augment=True)
+    # Create separate datasets - train with augmentation, val without
+    train_dataset_full = FaceParsingDataset(data_root, split='train', augment=True)
+    val_dataset_full = FaceParsingDataset(data_root, split='train', augment=False)
 
     # Calculate split sizes
-    total_size = len(full_dataset)
+    total_size = len(train_dataset_full)
     val_size = int(total_size * val_split)
     train_size = total_size - val_size
 
     print(f"Splitting dataset: {total_size} total -> {train_size} train, {val_size} val")
 
-    # Split dataset
-    generator = torch.Generator().manual_seed(seed)
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size], generator=generator)
+    # Get indices for split
+    import numpy as np
+    np.random.seed(seed)
+    indices = np.random.permutation(total_size)
+    train_indices = indices[:train_size]
+    val_indices = indices[train_size:]
+
+    # Create subset datasets
+    from torch.utils.data import Subset
+    train_dataset = Subset(train_dataset_full, train_indices)
+    val_dataset = Subset(val_dataset_full, val_indices)
+
+    # Only use pin_memory on CUDA devices (not supported on MPS)
+    pin_memory = torch.cuda.is_available()
 
     # Create dataloaders
     train_loader = DataLoader(
@@ -132,7 +145,7 @@ def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin_memory
     )
 
     val_loader = DataLoader(
@@ -140,7 +153,7 @@ def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=pin_memory
     )
 
     return train_loader, val_loader
