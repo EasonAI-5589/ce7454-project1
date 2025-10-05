@@ -126,8 +126,9 @@ class Trainer:
                 accuracy = pixel_accuracy(pred, masks)
 
             # Update meters
+            # Note: f_score is already averaged across batch, so weight=1
             losses.update(loss.item(), images.size(0))
-            f_scores.update(f_score, images.size(0))
+            f_scores.update(f_score, 1)  # Fixed: f_score is mean, not sum
             accuracies.update(accuracy, images.size(0))
 
             # Print progress
@@ -164,8 +165,9 @@ class Trainer:
             accuracy = pixel_accuracy(pred, masks)
 
             # Update meters
+            # Note: f_score is already averaged across batch, so weight=1
             losses.update(loss.item(), images.size(0))
-            f_scores.update(f_score, images.size(0))
+            f_scores.update(f_score, 1)  # Fixed: f_score is mean, not sum
             accuracies.update(accuracy, images.size(0))
 
         return {

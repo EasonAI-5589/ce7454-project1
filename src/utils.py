@@ -7,8 +7,11 @@ import torch.nn as nn
 import numpy as np
 import os
 
-def calculate_f_score(pred, target, num_classes=19, eps=1e-8):
-    """Calculate F-Score for segmentation"""
+def calculate_f_score(pred, target, num_classes=19, eps=1e-7):
+    """
+    Calculate F-Score for segmentation
+    Matches Codabench evaluation: only computes F-Score for classes present in ground truth
+    """
     # Convert to numpy if tensor
     if hasattr(pred, 'cpu'):
         pred = pred.cpu().numpy()
@@ -19,17 +22,20 @@ def calculate_f_score(pred, target, num_classes=19, eps=1e-8):
     target = target.flatten()
 
     f_scores = []
-    for cls in range(num_classes):
-        pred_cls = (pred == cls)
-        target_cls = (target == cls)
+    # Only compute F-Score for classes that exist in ground truth (matches Codabench)
+    for class_id in np.unique(target):
+        tp = np.sum((target == class_id) & (pred == class_id))
+        fp = np.sum((target != class_id) & (pred == class_id))
+        fn = np.sum((target == class_id) & (pred != class_id))
 
-        tp = float((pred_cls & target_cls).sum())
-        fp = float((pred_cls & ~target_cls).sum())
-        fn = float((~pred_cls & target_cls).sum())
-
+        # F-Score calculation with epsilon for numerical stability
         precision = tp / (tp + fp + eps)
         recall = tp / (tp + fn + eps)
-        f_score = 2 * precision * recall / (precision + recall + eps)
+        f_score = (
+            (1 + 1**2)  # beta=1
+            * (precision * recall)
+            / ((1**2 * precision) + recall + eps)
+        )
 
         f_scores.append(f_score)
 
