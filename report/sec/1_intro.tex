@@ -1,0 +1,31 @@
+\section{Introduction}
+\label{sec:intro}
+
+Face parsing, the task of pixel-level semantic segmentation of facial images into different regions (e.g., eyes, nose, mouth, hair, skin), is crucial for numerous computer vision applications including face recognition, makeup transfer, and face editing. Despite significant advances in semantic segmentation using deep learning, face parsing remains challenging due to the need for fine-grained boundary detection and the large variation in facial appearance, pose, and occlusions.
+
+Recent transformer-based architectures~\cite{xie2021segformer} have shown promising results for semantic segmentation tasks. However, these models often contain millions of parameters, making them computationally expensive and unsuitable for resource-constrained scenarios. This work addresses the challenge of developing an efficient face parsing model that achieves competitive performance while adhering to strict parameter constraints.
+
+\subsection{Problem Statement}
+
+The task is to perform pixel-wise semantic segmentation on the CelebAMask-HQ dataset, which contains facial images annotated with 19 different semantic classes including background, skin, nose, eyes, eyebrows, ears, mouth, lips, hair, hat, earrings, necklace, neck, and clothing. The primary challenges include:
+
+\begin{itemize}
+    \item \textbf{Parameter Efficiency}: The model must contain fewer than 1,821,085 trainable parameters
+    \item \textbf{Fine-grained Segmentation}: Accurate boundary delineation between adjacent facial regions
+    \item \textbf{Class Imbalance}: Significant variation in the spatial extent of different facial components
+    \item \textbf{Limited Training Data}: Only 1,000 training images with 100 validation samples
+\end{itemize}
+
+\subsection{Our Approach}
+
+We propose MicroSegFormer, a lightweight transformer-based architecture that incorporates:
+
+\begin{itemize}
+    \item Efficient hierarchical transformer encoder with spatial reduction attention
+    \item Lightweight MLP decoder for multi-scale feature aggregation
+    \item Combined loss function (Cross-Entropy + Dice Loss) for handling class imbalance
+    \item Comprehensive data augmentation strategy including geometric and photometric transforms
+    \item Advanced optimization techniques with cosine annealing and gradient clipping
+\end{itemize}
+
+Our model achieves 1,721,939 parameters (94.6\% utilization), demonstrating effective use of the parameter budget while maintaining strong segmentation performance.

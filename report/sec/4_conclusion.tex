@@ -1,0 +1,34 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+This work presents MicroSegFormer, a lightweight transformer-based architecture for efficient face parsing under strict parameter constraints. Through careful architectural design and comprehensive optimization, we achieve competitive segmentation performance with only 1.72 million parameters (94.6\% of the allowed budget).
+
+\textbf{Key Contributions}:
+\begin{itemize}
+    \item Efficient hierarchical transformer encoder with spatial reduction attention, reducing computational complexity while preserving accuracy
+    \item Lightweight MLP decoder for effective multi-scale feature fusion
+    \item Combined loss function (Cross-Entropy + Dice) addressing class imbalance and boundary accuracy
+    \item Comprehensive data augmentation strategy maximizing generalization from limited training data
+\end{itemize}
+
+\textbf{Experimental Insights}:
+Our ablation studies demonstrate that:
+\begin{enumerate}
+    \item The combined CE+Dice loss significantly outperforms either loss alone, particularly for small facial regions
+    \item Data augmentation (both geometric and photometric) is crucial for generalization with limited training data
+    \item Cosine annealing with warmup provides more stable and effective convergence than step-based schedules
+    \item The medium-depth encoder configuration (depths [1,2,2,2]) achieves optimal parameter efficiency
+\end{enumerate}
+
+\textbf{Limitations and Future Work}:
+While MicroSegFormer demonstrates strong performance within parameter constraints, several directions could further improve results:
+\begin{itemize}
+    \item Test-time augmentation (TTA) for improved prediction robustness
+    \item Advanced post-processing techniques like Conditional Random Fields (CRF) for boundary refinement
+    \item Multi-scale training and inference strategies
+    \item Exploration of knowledge distillation from larger pre-trained models
+\end{itemize}
+
+Our implementation demonstrates that transformer-based architectures can be effectively scaled down for resource-constrained scenarios while maintaining competitive performance, making face parsing accessible for edge devices and real-time applications.
+
+\textbf{Code Availability}: The complete implementation including training scripts, model architecture, and inference pipeline is available in the supplementary materials.

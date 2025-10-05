@@ -1,0 +1,173 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Overview}
+
+MicroSegFormer is a hierarchical transformer-based architecture designed for efficient face parsing under strict parameter constraints (< 1.82M parameters). The model consists of two main components: (1) a four-stage hierarchical encoder that extracts multi-scale features through efficient self-attention, and (2) a lightweight MLP decoder that fuses these features for pixel-wise classification. Our final model contains 1,721,939 parameters, utilizing 94.6\% of the allowed budget.
+
+\subsection{Hierarchical Transformer Encoder}
+
+\textbf{Architecture Configuration}: The encoder employs four stages with progressively increasing channel dimensions $C = [32, 64, 128, 192]$ and depths $D = [1, 2, 2, 2]$, processing input images at multiple resolutions. This hierarchical design captures both fine-grained local details and high-level semantic information.
+
+\subsubsection{Overlapping Patch Embedding}
+
+Unlike standard vision transformers that use non-overlapping patches, we employ overlapping patch embeddings to preserve local continuity—critical for accurate facial boundary segmentation.
+
+For each stage $i$, the patch embedding is implemented as:
+\begin{equation}
+\text{PatchEmbed}_i(x) = \text{LayerNorm}(\text{Flatten}(\text{Conv2D}(x)))
+\end{equation}
+
+\textbf{Stage 1} uses a $7\times7$ convolution with stride 4 to downsample the input image ($3\times512\times512$) to $32\times128\times128$, reducing spatial resolution by 4× while preserving overlapping receptive fields (padding=3).
+
+\textbf{Stages 2-4} use $3\times3$ convolutions with stride 2, progressively downsampling features:
+\begin{itemize}
+    \item Stage 2: $32\times128\times128 \rightarrow 64\times64\times64$
+    \item Stage 3: $64\times64\times64 \rightarrow 128\times32\times32$
+    \item Stage 4: $128\times32\times32 \rightarrow 192\times16\times16$
+\end{itemize}
+
+The overlapping design (patch\_size $>$ stride) ensures that boundary information is not lost during downsampling, which is crucial for segmentation tasks.
+
+\subsubsection{Efficient Self-Attention Mechanism}
+
+Standard self-attention has $\mathcal{O}(N^2)$ complexity where $N$ is the sequence length. For high-resolution images, this becomes prohibitively expensive. We adopt \textbf{spatial reduction (SR) attention} to reduce computational cost while maintaining representation power.
+
+\textbf{Query Computation} (full resolution):
+\begin{equation}
+Q = \text{Linear}_q(X) \in \mathbb{R}^{N \times C}
+\end{equation}
+
+\textbf{Key-Value Computation} (reduced resolution):
+For stages with SR ratio $R > 1$, we spatially reduce the feature map before computing $K$ and $V$:
+\begin{equation}
+X' = \text{LayerNorm}(\text{Conv2D}(X; k=R, s=R))
+\end{equation}
+\begin{equation}
+K, V = \text{Linear}_{kv}(X') \in \mathbb{R}^{N/R^2 \times C}
+\end{equation}
+
+Our SR ratios are $[8, 4, 2, 1]$ for stages 1-4. For example, in Stage 1 with $N = 128 \times 128 = 16384$, the KV sequence length is reduced to $16384 / 64 = 256$, reducing attention complexity from $\mathcal{O}(16384^2)$ to $\mathcal{O}(16384 \times 256)$—a 64× reduction.
+
+\textbf{Attention Operation}:
+\begin{equation}
+\text{Attention}(Q, K, V) = \text{Softmax}(\frac{QK^T}{\sqrt{d_k}})V
+\end{equation}
+
+where $d_k = C / H$ is the dimension per head. We use single-head attention ($H=1$) to minimize parameters while maintaining effectiveness.
+
+\subsubsection{Feed-Forward Network}
+
+Each transformer block contains a two-layer MLP with GELU activation:
+\begin{equation}
+\text{FFN}(x) = \text{Linear}(\text{GELU}(\text{Linear}(x)))
+\end{equation}
+
+with expansion ratio 2 (hidden dimension = $2C$). This provides non-linear transformation capacity without excessive parameters.
+
+\subsubsection{Transformer Block}
+
+Each stage contains $D_i$ transformer blocks with residual connections and pre-normalization:
+\begin{align}
+x' &= x + \text{Attention}(\text{LayerNorm}(x), H, W) \\
+x'' &= x' + \text{FFN}(\text{LayerNorm}(x'))
+\end{align}
+
+The pre-normalization design stabilizes training and enables deeper networks.
+
+\subsection{Lightweight MLP Decoder}
+
+The decoder fuses multi-scale features from all four encoder stages through a purely MLP-based approach, avoiding heavy convolutional layers.
+
+\subsubsection{Channel Unification}
+
+Features from different stages have different channel dimensions $[32, 64, 128, 192]$. We first project all features to a unified dimension (128) using linear layers:
+\begin{equation}
+\hat{f}_i = \text{Linear}(f_i) \in \mathbb{R}^{H_i \times W_i \times 128}, \quad i = 1,2,3,4
+\end{equation}
+
+\subsubsection{Spatial Alignment}
+
+All features are upsampled to the resolution of Stage 1 ($128 \times 128$) using bilinear interpolation:
+\begin{equation}
+\tilde{f}_i = \text{Upsample}(\hat{f}_i, \text{size}=(128, 128))
+\end{equation}
+
+This alignment enables direct concatenation and fusion across scales.
+
+\subsubsection{Feature Fusion}
+
+The aligned features are concatenated and fused through a 2-layer MLP:
+\begin{equation}
+f_{\text{fused}} = \text{MLP}([\tilde{f}_1, \tilde{f}_2, \tilde{f}_3, \tilde{f}_4])
+\end{equation}
+
+where MLP consists of: Linear(512→128) + GELU + Linear(128→128).
+
+\subsubsection{Final Prediction}
+
+The fused features ($128 \times 128 \times 128$) are upsampled 4× to match input resolution (512×512), then passed through a $1\times1$ convolution for classification:
+\begin{equation}
+\text{Output} = \text{Conv2D}(\text{Upsample}(f_{\text{fused}}, \text{scale}=4), k=1)
+\end{equation}
+
+producing the final prediction map of shape $(19 \times 512 \times 512)$.
+
+\subsection{Loss Function}
+
+We employ a weighted combination of Cross-Entropy and Dice Loss:
+\begin{equation}
+\mathcal{L}_{\text{total}} = \mathcal{L}_{CE} + 0.5 \cdot \mathcal{L}_{Dice}
+\end{equation}
+
+\textbf{Cross-Entropy Loss} provides per-pixel, per-class supervision:
+\begin{equation}
+\mathcal{L}_{CE} = -\frac{1}{HW}\sum_{h,w}\sum_{c=1}^{19} y_{hwc} \log(\hat{y}_{hwc})
+\end{equation}
+
+\textbf{Dice Loss} addresses class imbalance and improves boundary quality:
+\begin{equation}
+\mathcal{L}_{Dice} = 1 - \frac{1}{19}\sum_{c=1}^{19}\frac{2\sum_{h,w}y_{hwc}\hat{y}_{hwc} + \epsilon}{\sum_{h,w}y_{hwc} + \sum_{h,w}\hat{y}_{hwc} + \epsilon}
+\end{equation}
+
+The Dice coefficient ranges [0,1], with 1 indicating perfect overlap. The weight 0.5 balances the two objectives.
+
+\subsection{Training Strategy}
+
+\textbf{Optimizer}: AdamW with learning rate $\eta = 1.5 \times 10^{-3}$ and weight decay $\lambda = 5 \times 10^{-4}$. Weight decay provides L2 regularization on all parameters.
+
+\textbf{Learning Rate Schedule}: Cosine annealing with linear warmup:
+\begin{equation}
+\eta_t = \begin{cases}
+\frac{t}{T_w} \cdot \eta_{\max} & t \leq T_w \\
+\eta_{\min} + \frac{1}{2}(\eta_{\max} - \eta_{\min})(1 + \cos(\frac{t-T_w}{T-T_w}\pi)) & t > T_w
+\end{cases}
+\end{equation}
+
+where $T_w = 5$ epochs for warmup, $T = 150$ total epochs, $\eta_{\min} = 0$.
+
+\textbf{Gradient Clipping}: Maximum gradient norm of 1.0 prevents gradient explosion.
+
+\textbf{Early Stopping}: Training stops if validation F-Score does not improve for 30 consecutive epochs.
+
+\textbf{Mixed Precision Training}: FP16 computation with FP32 master weights reduces memory usage and accelerates training on modern GPUs.
+
+\subsection{Data Augmentation}
+
+Given limited training data (1,000 images), aggressive augmentation is crucial:
+
+\textbf{Geometric Transformations}:
+\begin{itemize}
+    \item Random horizontal flip ($p = 0.5$)
+    \item Random rotation ($\pm 15°$)
+    \item Random scaling ($[0.9, 1.1]\times$)
+\end{itemize}
+
+\textbf{Photometric Transformations}:
+\begin{itemize}
+    \item Color jitter: brightness ($\pm 20\%$), contrast ($\pm 20\%$), saturation ($\pm 10\%$)
+\end{itemize}
+
+\textbf{Normalization}: ImageNet statistics ($\mu = [0.485, 0.456, 0.406]$, $\sigma = [0.229, 0.224, 0.225]$) are applied to leverage pre-training knowledge in convolutional layers.
+
+\textbf{Critical Implementation Detail}: Augmentation is applied \textit{only} to the training set. The validation set uses only center crop and normalization to ensure consistent, reproducible metrics.
