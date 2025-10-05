@@ -6,10 +6,10 @@
 # Model checkpoints and outputs
 outputs/
 experiments/
-checkpoints/
-*.pth
-*.pt
-*.ckpt
+# checkpoints/  # Uncommented - include training results
+# *.pth        # Uncommented - include model files
+# *.pt         # Uncommented - include model files
+# *.ckpt       # Uncommented - include checkpoints
 
 # Python
 __pycache__/
