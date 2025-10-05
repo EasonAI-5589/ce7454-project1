@@ -14,12 +14,12 @@ training:
   epochs: 150
   optimizer: AdamW
   learning_rate: 1.5e-3  # batch32对应的lr
-  weight_decay: 1e-4
+  weight_decay: 5e-4     # 增加正则化: 1e-4 -> 5e-4
   scheduler: CosineAnnealingLR
   warmup_epochs: 5
   max_grad_norm: 1.0
-  early_stopping_patience: 20
-  use_amp: false  # Mixed precision training (optional)
+  early_stopping_patience: 30  # 增加patience: 20 -> 30
+  use_amp: true          # 开启混合精度训练
 
 loss:
   ce_weight: 1.0

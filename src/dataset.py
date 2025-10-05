@@ -1,6 +1,6 @@
 """
-Simple dataset loader for face parsing
-Only depends on PIL, numpy and PyTorch core
+Ultra-Strong Data Augmentation for Face Parsing
+Includes: Flip, Rotation, Scale, Color Jitter, Gaussian Blur
 """
 import os
 import torch
@@ -10,7 +10,7 @@ import numpy as np
 import random
 
 class FaceParsingDataset(Dataset):
-    """Simple face parsing dataset"""
+    """Face parsing dataset with ultra-strong augmentation"""
 
     def __init__(self, data_root, split='train', image_size=512, augment=False):
         self.data_root = data_root
@@ -37,6 +37,84 @@ class FaceParsingDataset(Dataset):
 
     def __len__(self):
         return len(self.image_files)
+
+    def _apply_augmentation(self, image, mask):
+        """ULTRA-STRONG augmentation pipeline"""
+        # 1. Random Horizontal Flip (p=0.5)
+        if random.random() > 0.5:
+            image = np.fliplr(image).copy()
+            mask = np.fliplr(mask).copy()
+
+        # 2. Random Rotation (-20° to +20°)
+        if random.random() > 0.4:
+            angle = random.uniform(-20, 20)
+            image = self._rotate(image, angle)
+            mask = self._rotate(mask, angle, is_mask=True)
+
+        # 3. Random Scale (0.8 to 1.2)
+        if random.random() > 0.4:
+            scale = random.uniform(0.8, 1.2)
+            image = self._scale_crop(image, scale)
+            mask = self._scale_crop(mask, scale, is_mask=True)
+
+        # 4. Color Jitter (brightness, contrast)
+        if random.random() > 0.5:
+            # Brightness
+            brightness = random.uniform(0.7, 1.3)
+            image = np.clip(image.astype(np.float32) * brightness, 0, 255).astype(np.uint8)
+
+            # Contrast
+            if random.random() > 0.5:
+                contrast = random.uniform(0.8, 1.2)
+                mean = image.mean()
+                image = np.clip((image - mean) * contrast + mean, 0, 255).astype(np.uint8)
+
+        # 5. Random Gaussian Noise
+        if random.random() > 0.7:
+            noise = np.random.normal(0, random.uniform(3, 8), image.shape)
+            image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+
+        return image, mask
+
+    def _rotate(self, img, angle, is_mask=False):
+        """Rotate image using PIL"""
+        if is_mask:
+            img_pil = Image.fromarray(img.astype(np.uint8))
+            rotated = img_pil.rotate(angle, resample=Image.NEAREST, fillcolor=0)
+        else:
+            img_pil = Image.fromarray(img)
+            rotated = img_pil.rotate(angle, resample=Image.BILINEAR, fillcolor=0)
+        return np.array(rotated)
+
+    def _scale_crop(self, img, scale, is_mask=False):
+        """Scale and center crop to original size"""
+        h, w = img.shape[:2]
+        new_h, new_w = int(h * scale), int(w * scale)
+
+        if is_mask:
+            img_pil = Image.fromarray(img.astype(np.uint8))
+            resized = img_pil.resize((new_w, new_h), resample=Image.NEAREST)
+        else:
+            img_pil = Image.fromarray(img)
+            resized = img_pil.resize((new_w, new_h), resample=Image.BILINEAR)
+
+        resized_np = np.array(resized)
+
+        # Center crop or pad to original size
+        if scale > 1:  # Crop
+            start_h = (new_h - h) // 2
+            start_w = (new_w - w) // 2
+            return resized_np[start_h:start_h+h, start_w:start_w+w]
+        else:  # Pad
+            pad_h = (h - new_h) // 2
+            pad_w = (w - new_w) // 2
+            if len(img.shape) == 3:
+                padded = np.zeros((h, w, img.shape[2]), dtype=img.dtype)
+                padded[pad_h:pad_h+new_h, pad_w:pad_w+new_w] = resized_np
+            else:
+                padded = np.zeros((h, w), dtype=img.dtype)
+                padded[pad_h:pad_h+new_h, pad_w:pad_w+new_w] = resized_np
+            return padded
 
     def __getitem__(self, idx):
         # Load image
@@ -65,11 +143,9 @@ class FaceParsingDataset(Dataset):
         # Convert to arrays
         image = np.array(image)
 
-        # Simple augmentation
-        if self.augment and random.random() > 0.5:
-            # Horizontal flip
-            image = np.fliplr(image).copy()
-            mask = np.fliplr(mask).copy()
+        # ULTRA Data Augmentation
+        if self.augment:
+            image, mask = self._apply_augmentation(image, mask)
 
         # Normalize image to [0, 1]
         image = image.astype(np.float32) / 255.0
@@ -85,7 +161,6 @@ def get_dataloader(data_root, split='train', batch_size=8, num_workers=2, augmen
     dataset = FaceParsingDataset(data_root, split=split, augment=augment)
 
     shuffle = (split == 'train')
-    # Only use pin_memory on CUDA devices (not supported on MPS)
     pin_memory = torch.cuda.is_available()
 
     dataloader = DataLoader(
@@ -100,19 +175,7 @@ def get_dataloader(data_root, split='train', batch_size=8, num_workers=2, augmen
 
 
 def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0.1, seed=42):
-    """
-    Create train and validation dataloaders by splitting the training set
-
-    Args:
-        data_root: Root directory of dataset
-        batch_size: Batch size for training
-        num_workers: Number of workers for data loading
-        val_split: Fraction of data to use for validation (default 0.1 = 10%)
-        seed: Random seed for reproducible split
-
-    Returns:
-        train_loader, val_loader
-    """
+    """Create train and validation dataloaders"""
     # Create separate datasets - train with augmentation, val without
     train_dataset_full = FaceParsingDataset(data_root, split='train', augment=True)
     val_dataset_full = FaceParsingDataset(data_root, split='train', augment=False)
@@ -136,7 +199,6 @@ def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0
     train_dataset = Subset(train_dataset_full, train_indices)
     val_dataset = Subset(val_dataset_full, val_indices)
 
-    # Only use pin_memory on CUDA devices (not supported on MPS)
     pin_memory = torch.cuda.is_available()
 
     # Create dataloaders
