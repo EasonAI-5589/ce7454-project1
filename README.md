@@ -1,243 +1,98 @@
 # CE7454 Face Parsing - MicroSegFormer
 
-Face parsing project using MicroSegFormer (1.72M parameters).
+Face parsing with 19-class segmentation using MicroSegFormer (1.72M parameters).
 
-**Deadline**: October 14, 2024 11:59 PM
-**Status**: Ready for Training ✅
+**Deadline**: October 14, 2024 | **Status**: ✅ Production Ready
 
-## 🎯 Project Overview
+## ✅ 最新修复 (Oct 5, 2025)
 
-- **Task**: Face parsing with 19-class semantic segmentation
-- **Dataset**: CelebAMask-HQ mini (1000 train + 100 val images)
-- **Model**: MicroSegFormer - Hierarchical Transformer
-- **Parameters**: 1,723,027 (94.6% of 1,821,085 limit)
-- **Target**: F-Score > 0.80
+所有关键bug已修复，代码可直接训练：
 
-## 🚀 Quick Start (One Command)
+1. ✅ NumPy负步长错误 - 修复训练崩溃
+2. ✅ 验证集增强bug - 修复验证指标
+3. ✅ 推理模块导入错误 - 修复测试预测
+4. ✅ CUDA设备兼容性 - 服务器可用
+
+## 🚀 服务器快速开始
 
 ```bash
-# Start training immediately
-./quick_start.sh train
-```
-
-That's it! Training will begin with optimal settings.
-
-## 📁 Setup
-
-### 1. Clone & Install
-```bash
+# 1. Clone代码
 git clone https://github.com/EasonAI-5589/ce7454-project1.git
 cd ce7454-project1
-pip install -r requirements.txt
+
+# 2. 配置环境
+bash setup_env.sh
+conda activate ce7454
+
+# 3. 开始训练
+python main.py
 ```
 
-### 2. Dataset Setup
+## 📝 常用命令
 
-Download from [CodaBench](https://www.codabench.org/competitions/4381/):
+### 训练
 ```bash
-# Extract dataset
-unzip dev-public.zip
-
-# Verify structure
-data/
-├── train/
-│   ├── images/  # 1000 images
-│   └── masks/   # 1000 masks
+python main.py                                    # 开始训练
+python main.py --device cuda:0                    # 指定GPU
+python main.py --resume checkpoints/best_model.pth # 恢复训练
 ```
 
-### 3. Train Model
+### 测试
 ```bash
-# Start training
-./quick_start.sh train
-
-# Or with Python
-python main.py --config configs/main.yaml
-```
-
-## 📊 Model Architecture
-
-**MicroSegFormer** - Hierarchical Transformer for Face Parsing
-
-```
-Input (512×512×3)
-    ↓
-Hierarchical Encoder (4 stages)
-├── Stage 1: 64 channels  → 128×128
-├── Stage 2: 128 channels → 64×64
-├── Stage 3: 256 channels → 32×32
-└── Stage 4: 512 channels → 16×16
-    ↓
-Multi-Scale Fusion
-├── Skip connections
-└── Self-attention modules
-    ↓
-Lightweight MLP Decoder
-    ↓
-Output (512×512×19)
-```
-
-**Key Features**:
-- 1,723,027 parameters (94.6% usage)
-- Hierarchical transformer encoder
-- Multi-scale feature fusion
-- Efficient attention mechanism
-- Optimized for face parsing
-
-## 🎯 Training Configuration
-
-**Default settings** (configs/main.yaml):
-- **Epochs**: 150 with early stopping (patience=20)
-- **Batch Size**: 8
-- **Optimizer**: AdamW (lr=1e-3, wd=1e-4)
-- **Scheduler**: CosineAnnealingLR with 5-epoch warmup
-- **Loss**: CrossEntropy (1.0) + Dice (0.5)
-- **Augmentation**: Flip, rotation, color jitter, scaling
-
-**Expected Training Time**: 4-6 hours on V100/A100
-
-## 📝 Commands Reference
-
-### Training
-```bash
-# Start training
-./quick_start.sh train
-
-# Resume from checkpoint
-./quick_start.sh resume checkpoints/best_model.pth
-
-# Specify device
-python main.py --device cuda:0
-```
-
-### Testing
-```bash
-# Test model on validation set
-./quick_start.sh test checkpoints/best_model.pth
-
-# Or with Python
+# 验证集测试
 python test.py --checkpoint checkpoints/best_model.pth
+
+# 生成测试集预测 (Codabench提交)
+python -m src.inference --model checkpoints/best_model.pth --data data --output predictions --zip
 ```
 
-### Monitor Training
+### 监控
 ```bash
-# Watch training logs
-tail -f checkpoints/microsegformer_*/training_log.txt
-
-# Check model parameters
-python main.py --config configs/main.yaml  # Prints param count
+tail -f checkpoints/microsegformer_*/training_log.txt  # 查看日志
+nvidia-smi -l 1                                        # GPU监控
 ```
 
-## 📂 Project Structure
+## 📊 配置说明
+
+- **模型**: MicroSegFormer (1,721,939参数)
+- **数据**: 1000训练图像 + 100验证图像
+- **训练时间**: 4-6小时 (V100/A100)
+- **目标F-Score**: > 0.80
+
+## 📁 项目结构
 
 ```
 ce7454-project1/
-├── main.py                  # Main training entry
-├── test.py                  # Model evaluation
-├── quick_start.sh           # One-command training
-├── configs/
-│   └── main.yaml           # Model configuration
+├── setup_env.sh          # 环境配置脚本 (新)
+├── main.py               # 训练入口
+├── test.py               # 评估脚本
 ├── src/
-│   ├── trainer.py          # Training loop
-│   ├── dataset.py          # Data loading
-│   ├── augmentation.py     # Data augmentation
-│   ├── inference.py        # Inference utilities
-│   ├── utils.py            # Helper functions
-│   └── models/
-│       └── microsegformer.py  # Model architecture
-├── docs/                   # Documentation
-│   ├── PROJECT_OVERVIEW.md
-│   ├── TRAINING_GUIDE.md
-│   └── CODABENCH_README.md
-└── data/                   # Dataset (not in git)
-    └── train/
-        ├── images/
-        └── masks/
+│   ├── dataset.py        # 数据加载 (已修复)
+│   ├── inference.py      # 推理 (已修复)
+│   ├── trainer.py        # 训练循环
+│   └── models/microsegformer.py
+├── configs/main.yaml     # 训练配置
+└── data/                 # 数据集
 ```
 
-## 🎓 Training Outputs
+## 🔧 故障排查
 
-After training, you'll get:
-
-```
-checkpoints/microsegformer_YYYYMMDD_HHMMSS/
-├── best_model.pth          # Best F-Score checkpoint ⭐
-├── last_model.pth          # Latest checkpoint
-├── config.yaml             # Training config backup
-└── training_log.txt        # Training metrics
-```
-
-**Checkpoint contains**:
-- Model weights
-- Optimizer state
-- Scheduler state
-- Best F-Score
-- Training epoch
-
-## 📊 Performance Targets
-
-| Metric | Target | Status |
-|--------|--------|--------|
-| **F-Score** | > 0.80 | 🎯 Goal |
-| **Parameters** | 1,723,027 | ✅ Under limit |
-| **Training Time** | 4-6 hours | ✅ Optimized |
-| **GPU Memory** | ~6GB | ✅ Efficient |
-
-## 🔧 Troubleshooting
-
-**CUDA Out of Memory**
+**CUDA内存不足**
 ```yaml
-# In configs/main.yaml, reduce batch size
-batch_size: 4  # or 2
+# configs/main.yaml
+batch_size: 4  # 降低batch size
 ```
 
-**Training too slow**
-```yaml
-# Reduce workers if CPU bottleneck
-num_workers: 2
+**检查环境**
+```bash
+python -c "import torch; print('CUDA:', torch.cuda.is_available())"
 ```
 
-**Low F-Score**
-- Train longer (increase epochs to 200)
-- Check data augmentation settings
-- Verify data quality
+## 📚 文档
 
-## 📚 Documentation
-
-Detailed guides in `docs/`:
-- **[PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md)** - Project structure, model info
-- **[TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md)** - Complete training guide
-- **[CODABENCH_README.md](docs/CODABENCH_README.md)** - Submission instructions
-
-## 🎯 Next Steps
-
-1. ✅ Setup environment
-2. ✅ Download dataset
-3. **Run training**: `./quick_start.sh train`
-4. **Monitor progress**: Check training logs
-5. **Test model**: Use best checkpoint
-6. **Submit to CodaBench**
-
-## 📋 Requirements
-
-- **Python**: 3.8+
-- **PyTorch**: 2.0+
-- **GPU**: 6GB+ VRAM recommended
-- **Disk**: 2GB for dataset + checkpoints
-
-See [requirements.txt](requirements.txt) for dependencies.
-
-## 🏆 Competition Rules
-
-- ✅ Single model (no ensemble)
-- ✅ No pretrained weights
-- ✅ No external data
-- ✅ < 1,821,085 parameters
-
-## 📖 References
-
-- [CelebAMask-HQ Dataset](https://github.com/switchablenorms/CelebAMask-HQ)
-- [Competition Page](https://www.codabench.org/competitions/4381/)
-- [SegFormer Paper](https://arxiv.org/abs/2105.15203)
+- **[QUICK_START.md](QUICK_START.md)** - 服务器详细配置
+- **[docs/TRAINING_GUIDE.md](docs/TRAINING_GUIDE.md)** - 完整训练指南
+- **[docs/CODABENCH_README.md](docs/CODABENCH_README.md)** - 提交说明
 
 ---
 
