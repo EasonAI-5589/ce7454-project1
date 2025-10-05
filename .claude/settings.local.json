@@ -1,8 +1,4 @@
 {
-  "env": {
-    "http_proxy": "http://127.0.0.1:7890",
-    "https_proxy": "http://127.0.0.1:7890"
-  },
   "permissions": {
     "allow": [
       "WebFetch(domain:www.codabench.org)",
@@ -14,7 +10,12 @@
       "Bash(npm i:*)",
       "Bash(tree:*)",
       "Bash(chmod:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(cat:*)",
+      "Bash(git pull:*)",
+      "Bash(xargs cat:*)",
+      "Bash(pdflatex:*)",
+      "Bash(bibtex:*)"
     ],
     "deny": [],
     "ask": []

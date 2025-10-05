@@ -28,8 +28,8 @@ class OverlapPatchEmbed(nn.Module):
 
 
 class EfficientSelfAttention(nn.Module):
-    """Efficient Self-Attention with reduced KV sequence length"""
-    def __init__(self, dim, num_heads=1, sr_ratio=1):
+    """Efficient Self-Attention with reduced KV sequence length and dropout"""
+    def __init__(self, dim, num_heads=1, sr_ratio=1, attn_dropout=0.1, proj_dropout=0.1):
         super().__init__()
         self.dim = dim
         self.num_heads = num_heads
@@ -39,6 +39,10 @@ class EfficientSelfAttention(nn.Module):
         self.q = nn.Linear(dim, dim, bias=True)
         self.kv = nn.Linear(dim, dim * 2, bias=True)
         self.proj = nn.Linear(dim, dim)
+
+        # Dropout layers
+        self.attn_dropout = nn.Dropout(attn_dropout)
+        self.proj_dropout = nn.Dropout(proj_dropout)
 
         # Spatial reduction for efficient attention
         self.sr_ratio = sr_ratio
@@ -66,39 +70,46 @@ class EfficientSelfAttention(nn.Module):
         # Attention
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
+        attn = self.attn_dropout(attn)  # Apply attention dropout
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
+        x = self.proj_dropout(x)  # Apply projection dropout
 
         return x
 
 
 class MLP(nn.Module):
-    """Feed-forward network"""
-    def __init__(self, in_features, hidden_features=None, out_features=None):
+    """Feed-forward network with dropout"""
+    def __init__(self, in_features, hidden_features=None, out_features=None, dropout=0.1):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
 
         self.fc1 = nn.Linear(in_features, hidden_features)
         self.act = nn.GELU()
+        self.dropout1 = nn.Dropout(dropout)
         self.fc2 = nn.Linear(hidden_features, out_features)
+        self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, x):
         x = self.fc1(x)
         x = self.act(x)
+        x = self.dropout1(x)
         x = self.fc2(x)
+        x = self.dropout2(x)
         return x
 
 
 class TransformerBlock(nn.Module):
-    """Transformer Block with Efficient Attention"""
-    def __init__(self, dim, num_heads=1, mlp_ratio=2, sr_ratio=1):
+    """Transformer Block with Efficient Attention and Dropout"""
+    def __init__(self, dim, num_heads=1, mlp_ratio=2, sr_ratio=1, dropout=0.1):
         super().__init__()
         self.norm1 = nn.LayerNorm(dim)
-        self.attn = EfficientSelfAttention(dim, num_heads=num_heads, sr_ratio=sr_ratio)
+        self.attn = EfficientSelfAttention(dim, num_heads=num_heads, sr_ratio=sr_ratio,
+                                           attn_dropout=dropout, proj_dropout=dropout)
         self.norm2 = nn.LayerNorm(dim)
-        self.mlp = MLP(dim, hidden_features=int(dim * mlp_ratio))
+        self.mlp = MLP(dim, hidden_features=int(dim * mlp_ratio), dropout=dropout)
 
     def forward(self, x, H, W):
         x = x + self.attn(self.norm1(x), H, W)
@@ -167,8 +178,8 @@ class MLPDecoder(nn.Module):
 
 
 class MicroSegFormer(nn.Module):
-    """Ultra-lightweight SegFormer for face parsing (<1.82M params)"""
-    def __init__(self, num_classes=19, embed_dims=None, depths=None, sr_ratios=None):
+    """Ultra-lightweight SegFormer for face parsing (<1.82M params) with dropout regularization"""
+    def __init__(self, num_classes=19, embed_dims=None, depths=None, sr_ratios=None, dropout=0.15):
         super().__init__()
 
         # Default configuration - optimized for ~1.7M params
@@ -191,21 +202,21 @@ class MicroSegFormer(nn.Module):
         self.patch_embed3 = OverlapPatchEmbed(patch_size=3, stride=2, in_channels=embed_dims[1], embed_dim=embed_dims[2])
         self.patch_embed4 = OverlapPatchEmbed(patch_size=3, stride=2, in_channels=embed_dims[2], embed_dim=embed_dims[3])
 
-        # Transformer blocks
+        # Transformer blocks with dropout
         self.block1 = nn.ModuleList([
-            TransformerBlock(embed_dims[0], num_heads[0], mlp_ratios[0], sr_ratios[0])
+            TransformerBlock(embed_dims[0], num_heads[0], mlp_ratios[0], sr_ratios[0], dropout=dropout*0.5)
             for _ in range(depths[0])
         ])
         self.block2 = nn.ModuleList([
-            TransformerBlock(embed_dims[1], num_heads[1], mlp_ratios[1], sr_ratios[1])
+            TransformerBlock(embed_dims[1], num_heads[1], mlp_ratios[1], sr_ratios[1], dropout=dropout*0.75)
             for _ in range(depths[1])
         ])
         self.block3 = nn.ModuleList([
-            TransformerBlock(embed_dims[2], num_heads[2], mlp_ratios[2], sr_ratios[2])
+            TransformerBlock(embed_dims[2], num_heads[2], mlp_ratios[2], sr_ratios[2], dropout=dropout)
             for _ in range(depths[2])
         ])
         self.block4 = nn.ModuleList([
-            TransformerBlock(embed_dims[3], num_heads[3], mlp_ratios[3], sr_ratios[3])
+            TransformerBlock(embed_dims[3], num_heads[3], mlp_ratios[3], sr_ratios[3], dropout=dropout*1.25)
             for _ in range(depths[3])
         ])
 

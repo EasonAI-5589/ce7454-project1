@@ -1,0 +1,41 @@
+# Optimized Configuration with Dropout and Regularization
+# Target: Fix 11.3% overfitting gap, improve Val F-Score from 0.648 to 0.75+
+
+model:
+  name: microsegformer
+  num_classes: 19
+  dropout: 0.15  # NEW: Add dropout to reduce overfitting
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 200  # Increased from 150 (more training with dropout)
+  optimizer: AdamW
+  learning_rate: 8e-4  # Reduced from 1.5e-3 (slower, more stable)
+  weight_decay: 1e-4   # Reduced from 5e-4 (less regularization with dropout)
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: 50  # Increased from 30
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 0.5
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  scale_range: [0.9, 1.1]
+
+experiment:
+  name: optimized_with_dropout
+  description: "MicroSegFormer with 0.15 dropout, reduced LR and weight_decay - targeting 0.75+ F-Score"

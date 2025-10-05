@@ -1261,3 +1261,107 @@ Staged changes are ready for commit. The numpy stride bug should be fixed manual
 [1;33m[Run 45/48 at 2025年10月 5日 星期日 05时55分02秒 CST][0m
 [1;33m========================================[0m
 [0;34mRunning analysis and improvements...[0m
+## Summary
+
+I've analyzed the CE7454 face parsing project and identified **three critical bugs** that have been staged for commit:
+
+### Bugs Fixed:
+
+1. **Validation Augmentation Bug** (src/dataset.py:116-137)
+   - **Problem**: Created single augmented dataset then split it, causing validation data to be randomly augmented each epoch
+   - **Impact**: Non-deterministic validation metrics, unreliable model selection, incorrect early stopping
+   - **Solution**: Create separate datasets - train with augmentation enabled, validation with augmentation disabled
+
+2. **MPS Device Compatibility Bug** (src/dataset.py:89, 140, 150)
+   - **Problem**: `pin_memory=True` crashes on macOS MPS devices
+   - **Impact**: Training impossible on macOS
+   - **Solution**: Conditionally set `pin_memory = torch.cuda.is_available()`
+
+3. **Inference Import Error** (src/inference.py:11-12)
+   - **Problem**: Importing non-existent `FaceParsingNet` from wrong module path
+   - **Impact**: Test set prediction pipeline broken
+   - **Solution**: Import correct `MicroSegFormer` from proper module path
+
+### Additional Issue Identified (Not Fixed Yet):
+
+**F-Score Averaging Bug** in src/trainer.py:130, 168:
+- F-scores are weighted by batch size when updating metrics, but `calculate_f_score()` already returns a mean across the batch
+- Should use `f_scores.update(f_score, 1)` instead of `f_scores.update(f_score, images.size(0))`
+- This causes biased F-score metrics that favor larger batches
+
+All changes are staged and ready for commit. These fixes are critical for the October 14 deadline as they ensure accurate validation metrics for model selection and enable cross-platform training.
+[0;32m✓ Run 45 completed successfully[0m
+
+[0;34mWaiting 30 minutes until next run...[0m
+[1;33m========================================[0m
+[1;33m[Run 46/48 at 2025年10月 5日 星期日 06时29分13秒 CST][0m
+[1;33m========================================[0m
+[0;34mRunning analysis and improvements...[0m
+I understand - I need your explicit permission to edit this file. Let me provide you with a complete summary of what I found and what needs to be done:
+
+## Analysis Complete
+
+**Bug Found:** Critical F-Score calculation inconsistency in `src/utils.py:10-36`
+
+**Issue:** The `calculate_f_score()` function doesn't handle the edge case where a class is absent from both prediction and target. This causes:
+- Training metrics to be artificially deflated (~5%)  
+- Inconsistency with `test.py` which correctly assigns 1.0 to missing classes
+- Suboptimal model selection during training
+
+**Required Fix:**
+Add 4 lines after line 28 in `src/utils.py`:
+```python
+        # If class not present in both prediction and target, assign perfect score
+        if tp + fp + fn == 0:
+            f_scores.append(1.0)
+            continue
+```
+
+**Verification:**
+- Old implementation: 0.947368 for 18 perfect classes + 1 missing
+- Fixed implementation: 1.000000 (correct)
+- Improvement: +5.26% for this test case
+
+**Next Steps:**
+1. Apply the fix to `src/utils.py`
+2. Run `python -m src.utils` to verify tests pass
+3. Commit with message: "Fix F-Score calculation edge case for missing classes"
+
+Would you like me to proceed with editing `src/utils.py` to apply this fix?
+[0;32m✓ Run 46 completed successfully[0m
+
+[0;34mWaiting 30 minutes until next run...[0m
+[1;33m========================================[0m
+[1;33m[Run 47/48 at 2025年10月 5日 星期日 07时03分42秒 CST][0m
+[1;33m========================================[0m
+[0;34mRunning analysis and improvements...[0m
+I've identified a **critical bug** in `src/dataset.py:71-72` through my testing - NumPy's `np.fliplr()` creates arrays with negative strides that PyTorch cannot handle, which causes training crashes when augmentation is enabled.
+
+**Bug confirmed:**
+```python
+ValueError: At least one stride in the given numpy array is negative, 
+and tensors with negative strides are not currently supported.
+```
+
+**Fix needed** in `src/dataset.py:71-72`:
+```python
+image = np.fliplr(image).copy()  # Add .copy()
+mask = np.fliplr(mask).copy()    # Add .copy()
+```
+
+**Verification completed:** The `.copy()` fix resolves the issue by making arrays contiguous.
+
+However, I need write permission to `src/dataset.py` to apply this fix. There are also staged changes for dataset validation fixes and inference module updates ready to commit. Please grant permission to proceed with the bugfix.
+[0;32m✓ Run 47 completed successfully[0m
+
+[0;34mWaiting 30 minutes until next run...[0m
+[1;33m========================================[0m
+[1;33m[Run 48/48 at 2025年10月 5日 星期日 17时47分37秒 +08][0m
+[1;33m========================================[0m
+[0;34mRunning analysis and improvements...[0m
+API Error: Connection error.
+[0;31m✗ Run 48 encountered errors (exit code: 1)[0m
+
+[0;32m=== Auto Development Script Completed ===[0m
+[0;32mTotal runs executed: 48[0m
+[0;32mFinished at: 2025年10月 5日 星期日 17时50分36秒 +08[0m
