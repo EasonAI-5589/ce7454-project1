@@ -1,0 +1,35 @@
+augmentation:
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range:
+  - 0.9
+  - 1.1
+data:
+  batch_size: 8
+  num_workers: 4
+  root: data
+  val_split: 0.1
+experiment:
+  description: Main Transformer model with 1.72M parameters (94.6% usage)
+  name: baseline_microsegformer
+loss:
+  ce_weight: 1.0
+  dice_weight: 0.5
+model:
+  name: microsegformer
+  num_classes: 19
+output_dir: checkpoints/microsegformer_20251005_191916
+training:
+  early_stopping_patience: 20
+  epochs: 150
+  learning_rate: 1e-3
+  max_grad_norm: 1.0
+  optimizer: AdamW
+  scheduler: CosineAnnealingLR
+  use_amp: false
+  warmup_epochs: 5
+  weight_decay: 1e-4
