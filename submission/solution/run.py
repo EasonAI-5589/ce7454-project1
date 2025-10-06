@@ -51,11 +51,35 @@ def main(input, output, weights):
         # Get class predictions
         mask = torch.argmax(prediction, dim=1).squeeze(0).cpu().numpy()
 
-    # Convert to uint8 for saving
+    # Convert to uint8
     mask = mask.astype(np.uint8)
 
-    # Save as single-channel PNG
-    Image.fromarray(mask).save(output)
+    # Save with palette (EXACT match with Codabench format)
+    # Reference: https://www.codabench.org/competitions/2681/
+    PALETTE = np.array([[i, i, i] for i in range(256)])
+    PALETTE[:16] = np.array([
+        [0, 0, 0],
+        [128, 0, 0],
+        [0, 128, 0],
+        [128, 128, 0],
+        [0, 0, 128],
+        [128, 0, 128],
+        [0, 128, 128],
+        [128, 128, 128],
+        [64, 0, 0],
+        [191, 0, 0],
+        [64, 128, 0],
+        [191, 128, 0],
+        [64, 0, 128],
+        [191, 0, 128],
+        [64, 128, 128],
+        [191, 128, 128],
+    ])
+
+    # Create palette image
+    mask_img = Image.fromarray(mask)
+    mask_img.putpalette(PALETTE.reshape(-1).tolist())
+    mask_img.save(output)
 
 
 if __name__ == "__main__":
