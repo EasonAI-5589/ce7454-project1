@@ -16,7 +16,8 @@
       "Bash(xargs cat:*)",
       "Bash(pdflatex:*)",
       "Bash(bibtex:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(./regenerate_masks.sh:*)"
     ],
     "deny": [],
     "ask": []
