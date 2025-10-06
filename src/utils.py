@@ -54,13 +54,25 @@ def pixel_accuracy(pred, target):
     return (correct / total).item()
 
 class CombinedLoss(nn.Module):
-    """Combined Cross Entropy + Dice Loss"""
+    """Combined Cross Entropy + Dice Loss with Class Weights"""
 
-    def __init__(self, ce_weight=1.0, dice_weight=0.5):
+    def __init__(self, ce_weight=1.0, dice_weight=0.5, class_weights=None, use_focal=False, focal_alpha=0.25, focal_gamma=2.0):
         super().__init__()
-        self.ce_loss = nn.CrossEntropyLoss()
         self.ce_weight = ce_weight
         self.dice_weight = dice_weight
+        self.use_focal = use_focal
+        self.focal_alpha = focal_alpha
+        self.focal_gamma = focal_gamma
+
+        # Initialize CE loss with class weights
+        if class_weights is not None:
+            self.ce_loss = nn.CrossEntropyLoss(weight=class_weights)
+        else:
+            self.ce_loss = nn.CrossEntropyLoss()
+
+        print(f"Loss initialized: CE_weight={ce_weight}, Dice_weight={dice_weight}, "
+              f"Class_weights={'enabled' if class_weights is not None else 'disabled'}, "
+              f"Focal={'enabled' if use_focal else 'disabled'}")
 
     def dice_loss(self, inputs, targets, eps=1e-8):
         """Dice loss"""
@@ -75,8 +87,23 @@ class CombinedLoss(nn.Module):
 
         return 1 - dice.mean()
 
+    def focal_loss(self, inputs, targets):
+        """
+        Focal Loss for handling hard examples
+        FL(p_t) = -α(1-p_t)^γ * log(p_t)
+        """
+        ce_loss = torch.nn.functional.cross_entropy(inputs, targets, reduction='none')
+        p_t = torch.exp(-ce_loss)
+        focal_loss = self.focal_alpha * (1 - p_t) ** self.focal_gamma * ce_loss
+        return focal_loss.mean()
+
     def forward(self, inputs, targets):
-        ce = self.ce_loss(inputs, targets)
+        # Choose between CE and Focal Loss
+        if self.use_focal:
+            ce = self.focal_loss(inputs, targets)
+        else:
+            ce = self.ce_loss(inputs, targets)
+
         dice = self.dice_loss(inputs, targets)
         return self.ce_weight * ce + self.dice_weight * dice
 
