@@ -7,10 +7,11 @@ import torch.nn as nn
 import numpy as np
 import os
 
-def calculate_f_score(pred, target, num_classes=19, eps=1e-7):
+def calculate_f_score(pred, target, num_classes=19, beta=1):
     """
     Calculate F-Score for segmentation
-    Matches Codabench evaluation: only computes F-Score for classes present in ground truth
+    EXACT match with Codabench evaluation code
+    Reference: https://www.codabench.org/competitions/2681/
     """
     # Convert to numpy if tensor
     if hasattr(pred, 'cpu'):
@@ -18,23 +19,25 @@ def calculate_f_score(pred, target, num_classes=19, eps=1e-7):
     if hasattr(target, 'cpu'):
         target = target.cpu().numpy()
 
-    pred = pred.flatten()
-    target = target.flatten()
+    # Codabench uses mask_gt, mask_pred naming
+    mask_gt = target
+    mask_pred = pred
 
     f_scores = []
-    # Only compute F-Score for classes that exist in ground truth (matches Codabench)
-    for class_id in np.unique(target):
-        tp = np.sum((target == class_id) & (pred == class_id))
-        fp = np.sum((target != class_id) & (pred == class_id))
-        fn = np.sum((target == class_id) & (pred != class_id))
 
-        # F-Score calculation with epsilon for numerical stability
-        precision = tp / (tp + fp + eps)
-        recall = tp / (tp + fn + eps)
+    # EXACT Codabench implementation: iterate over unique classes in ground truth
+    for class_id in np.unique(mask_gt):
+        tp = np.sum((mask_gt == class_id) & (mask_pred == class_id))
+        fp = np.sum((mask_gt != class_id) & (mask_pred == class_id))
+        fn = np.sum((mask_gt == class_id) & (mask_pred != class_id))
+
+        # EXACT Codabench formula
+        precision = tp / (tp + fp + 1e-7)
+        recall = tp / (tp + fn + 1e-7)
         f_score = (
-            (1 + 1**2)  # beta=1
+            (1 + beta**2)
             * (precision * recall)
-            / ((1**2 * precision) + recall + eps)
+            / ((beta**2 * precision) + recall + 1e-7)
         )
 
         f_scores.append(f_score)

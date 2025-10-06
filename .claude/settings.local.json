@@ -15,7 +15,8 @@
       "Bash(git pull:*)",
       "Bash(xargs cat:*)",
       "Bash(pdflatex:*)",
-      "Bash(bibtex:*)"
+      "Bash(bibtex:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
