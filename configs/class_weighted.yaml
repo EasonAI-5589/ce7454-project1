@@ -1,0 +1,53 @@
+# Class Weighted Configuration - Targeting F-Score improvement
+# Addresses class imbalance (7143:1 ratio between hair and neck_l)
+
+experiment:
+  name: "class_weighted_training"
+  description: "MicroSegFormer with class weights to handle imbalanced data - targeting 0.70+ F-Score"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.15  # Proven effective from previous training
+
+data:
+  root: "data/train"
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+training:
+  epochs: 200
+  optimizer: "adamw"
+  learning_rate: 8e-4  # Reduced from 1.5e-3
+  weight_decay: 1e-4   # Reduced from 5e-4
+  momentum: 0.9
+  scheduler: "cosine"
+  warmup_epochs: 5
+  min_lr: 1e-6
+  max_grad_norm: 1.0
+  early_stopping_patience: 50
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0              # Increased from 0.5 - Dice Loss approximates F1
+  use_class_weights: true       # NEW: Enable class weights to handle imbalance
+  use_focal: false              # Start with class weights, can enable if needed
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale: [0.8, 1.2]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+    hue: 0.05
+
+# Expected improvements:
+# - Class weights: +3-5% F-Score (most important for imbalanced data)
+# - Dice weight 1.0: +2-3% F-Score (already applied)
+# - Target: 0.6546 -> 0.70+ (5-7% improvement)

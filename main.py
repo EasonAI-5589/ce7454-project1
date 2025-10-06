@@ -95,10 +95,24 @@ def main():
     print(f"Train batches: {len(train_loader)}")
     print(f"Val batches: {len(val_loader)}")
 
-    # Create loss function
+    # Create loss function with class weights
+    class_weights = None
+    if config['loss'].get('use_class_weights', False):
+        # Class weights calculated from training data distribution
+        class_weights = torch.tensor([
+            0.0043, 0.0049, 0.0602, 0.3834, 0.5577,
+            0.5577, 0.2924, 0.2986, 0.2595, 0.3189,
+            0.4357, 0.3030, 0.1857, 0.0040, 0.1121,
+            0.6114, 14.5434, 0.0305, 0.0366
+        ], device=device)
+
     criterion = CombinedLoss(
         ce_weight=config['loss']['ce_weight'],
-        dice_weight=config['loss']['dice_weight']
+        dice_weight=config['loss']['dice_weight'],
+        class_weights=class_weights,
+        use_focal=config['loss'].get('use_focal', False),
+        focal_alpha=config['loss'].get('focal_alpha', 0.25),
+        focal_gamma=config['loss'].get('focal_gamma', 2.0)
     )
 
     # Create optimizer
