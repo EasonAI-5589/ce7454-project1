@@ -27,9 +27,10 @@ def setup_model(config):
     """Initialize model based on config"""
     model_name = config['model']['name']
     num_classes = config['model']['num_classes']
+    dropout = config['model'].get('dropout', 0.0)
 
     if model_name == 'microsegformer':
-        model = MicroSegFormer(num_classes=num_classes)
+        model = MicroSegFormer(num_classes=num_classes, dropout=dropout)
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
