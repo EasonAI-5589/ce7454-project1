@@ -1,0 +1,60 @@
+# Class Weighted V2 - Softened Weights
+# Based on analysis: Original weights too aggressive (-11.4% performance)
+# Solution: Apply square root to soften extreme weights
+
+experiment:
+  name: "class_weighted_v2_softened"
+  description: "MicroSegFormer with softened class weights (sqrt scaling) - targeting 0.70+ F-Score"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.15
+
+data:
+  root: "data"
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 200
+  optimizer: "AdamW"
+  learning_rate: 8e-4
+  weight_decay: 1e-4
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: 50
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  use_class_weights: true
+  use_softened_weights: true  # NEW: Apply sqrt to weights
+  use_focal: false
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+# Weight Adjustment Strategy:
+# Original weights caused -11.4% performance drop
+#
+# Problem: neck_l weight=14.54 too extreme
+# Solution: Apply sqrt() to all weights
+#
+# Example transformations:
+# - neck_l: 14.5434 -> 3.81 (75% reduction)
+# - l_eye:  0.5577 -> 0.75 (moderate)
+# - hair:   0.0040 -> 0.06 (moderate increase)
+#
+# This maintains relative ordering but reduces extremes

@@ -28,9 +28,10 @@ def setup_model(config):
     model_name = config['model']['name']
     num_classes = config['model']['num_classes']
     dropout = config['model'].get('dropout', 0.0)
+    use_lmsa = config['model'].get('use_lmsa', False)
 
     if model_name == 'microsegformer':
-        model = MicroSegFormer(num_classes=num_classes, dropout=dropout)
+        model = MicroSegFormer(num_classes=num_classes, dropout=dropout, use_lmsa=use_lmsa)
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
