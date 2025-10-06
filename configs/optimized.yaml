@@ -25,7 +25,7 @@ training:
 
 loss:
   ce_weight: 1.0
-  dice_weight: 0.5
+  dice_weight: 1.0  # Increased from 0.5: Dice Loss is differentiable F1 approximation
 
 augmentation:
   horizontal_flip: 0.5
