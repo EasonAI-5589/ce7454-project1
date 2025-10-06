@@ -7,11 +7,13 @@ import torch.nn as nn
 import numpy as np
 import os
 
-def calculate_f_score(pred, target, num_classes=19, beta=1):
+def calculate_f_score(pred, target, beta=1):
     """
     Calculate F-Score for segmentation
     EXACT match with Codabench evaluation code
     Reference: https://www.codabench.org/competitions/2681/
+
+    Note: Number of classes is automatically determined from unique values in target (mask_gt)
     """
     # Convert to numpy if tensor
     if hasattr(pred, 'cpu'):
@@ -26,6 +28,7 @@ def calculate_f_score(pred, target, num_classes=19, beta=1):
     f_scores = []
 
     # EXACT Codabench implementation: iterate over unique classes in ground truth
+    # No need for num_classes - dynamically get from np.unique(mask_gt)
     for class_id in np.unique(mask_gt):
         tp = np.sum((mask_gt == class_id) & (mask_pred == class_id))
         fp = np.sum((mask_gt != class_id) & (mask_pred == class_id))
