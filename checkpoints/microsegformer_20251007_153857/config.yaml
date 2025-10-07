@@ -1,0 +1,40 @@
+augmentation:
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range:
+  - 0.9
+  - 1.1
+data:
+  batch_size: 32
+  num_workers: 16
+  root: data
+  val_split: 0.1
+experiment:
+  description: MicroSegFormer with LMSA module - targeting 0.71+ F-Score through architecture
+    optimization
+  name: lmsa_v1
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  use_class_weights: false
+  use_focal: false
+model:
+  dropout: 0.15
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+output_dir: checkpoints/microsegformer_20251007_153857
+training:
+  early_stopping_patience: 50
+  epochs: 200
+  learning_rate: 8e-4
+  max_grad_norm: 1.0
+  optimizer: AdamW
+  scheduler: CosineAnnealingLR
+  use_amp: true
+  warmup_epochs: 5
+  weight_decay: 1e-4
