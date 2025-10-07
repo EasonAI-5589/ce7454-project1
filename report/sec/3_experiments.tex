@@ -35,6 +35,13 @@ Baseline (no LMSA) & 1.72M & 0.6753 & - & - \\
 
 This result validates our hypothesis that multi-scale attention is particularly effective for face parsing, where facial components span vastly different scales (background vs. small accessories).
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/best_model_analysis.pdf}
+\caption{Detailed training analysis of our best model (LMSA). The model converges at epoch 80 with validation F-Score 0.6819. Note the negative train-val gap at the best epoch (-0.0018), indicating no overfitting. The learning rate follows warmup + cosine annealing schedule.}
+\label{fig:best_model_analysis}
+\end{figure}
+
 \subsection{Loss Function Ablation}
 
 We systematically tested different loss configurations to identify the optimal formulation.
@@ -55,6 +62,13 @@ CE + Dice + Focal ($\gamma$=2, $\alpha$=0.25) & 0.6664 & - & -2.3\% \\
 \end{table}
 
 \textbf{Key Finding}: This counter-intuitive result demonstrates that \textit{architectural improvements (LMSA) are more effective than specialized loss functions (Focal Loss)} for handling class imbalance. The attention mechanism provides dynamic, learnable weighting, superior to Focal Loss's static $\gamma$ parameter.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/training_analysis.pdf}
+\caption{Comprehensive comparison of all experiments. Top row: validation/train F-Score and loss curves. Bottom row: best performance ranking, overfitting analysis (train-val gap), and convergence speed. Green indicates LMSA models (best performance), red indicates Focal Loss experiments (degraded performance). Our LMSA model achieves the highest validation F-Score (0.6819) with near-zero overfitting gap.}
+\label{fig:training_analysis}
+\end{figure}
 
 \subsection{Training Analysis}
 
