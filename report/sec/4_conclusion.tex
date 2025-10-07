@@ -1,34 +1,36 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-This work presents MicroSegFormer, a lightweight transformer-based architecture for efficient face parsing under strict parameter constraints. Through careful architectural design and comprehensive optimization, we achieve competitive segmentation performance with only 1.72 million parameters (94.6\% of the allowed budget).
+This work presents MicroSegFormer with a novel Lightweight Multi-Scale Attention (LMSA) module for efficient face parsing under strict parameter constraints. Our model achieves 0.72 test F-Score with 1.75 million parameters (96.0\% of the allowed budget), demonstrating that architectural innovation can be highly parameter-efficient.
 
 \textbf{Key Contributions}:
 \begin{itemize}
-    \item Efficient hierarchical transformer encoder with spatial reduction attention, reducing computational complexity while preserving accuracy
-    \item Lightweight MLP decoder for effective multi-scale feature fusion
-    \item Combined loss function (Cross-Entropy + Dice) addressing class imbalance and boundary accuracy
-    \item Comprehensive data augmentation strategy maximizing generalization from limited training data
+    \item \textbf{LMSA Module}: A parameter-efficient multi-scale attention mechanism (+1.5\% parameters, +0.98\% F-Score) that uses parallel convolutions (3×3, 5×5, 7×7) with SE channel attention to adaptively capture features across different facial component scales
+    \item Demonstration that \textit{architectural improvements outperform loss function engineering} for class imbalance—LMSA's attention mechanism implicitly handles imbalance better than Focal Loss
+    \item Efficient hierarchical transformer encoder with spatial reduction attention
+    \item Simple yet effective loss formulation (CE + Dice, 1:1) that outperforms complex alternatives
+    \item Strong generalization (+5.6\% test over validation) through effective data augmentation
 \end{itemize}
 
 \textbf{Experimental Insights}:
-Our ablation studies demonstrate that:
+Our systematic ablation studies across 9 experiments demonstrate that:
 \begin{enumerate}
-    \item The combined CE+Dice loss significantly outperforms either loss alone, particularly for small facial regions
-    \item Data augmentation (both geometric and photometric) is crucial for generalization with limited training data
-    \item Cosine annealing with warmup provides more stable and effective convergence than step-based schedules
-    \item The medium-depth encoder configuration (depths [1,2,2,2]) achieves optimal parameter efficiency
+    \item \textbf{Architecture > Loss Engineering}: LMSA module (+0.98\%) significantly outperforms Focal Loss modifications (-1.7\% to -2.3\%), suggesting that architectural improvements should be prioritized in parameter-constrained settings
+    \item \textbf{Attention Handles Imbalance}: The multi-scale attention mechanism in LMSA implicitly addresses class imbalance through adaptive feature weighting, making explicit class balancing techniques unnecessary
+    \item \textbf{Simplicity Works}: The simplest loss formulation (CE + Dice, 1:1) achieves best performance; complex loss combinations with Focal Loss consistently underperformed
+    \item \textbf{Strong Generalization}: Test F-Score (0.72) exceeding validation F-Score (0.6819) by 5.6\% indicates robust generalization without overfitting (train-val gap: -0.0018 at best epoch)
 \end{enumerate}
 
 \textbf{Limitations and Future Work}:
-While MicroSegFormer demonstrates strong performance within parameter constraints, several directions could further improve results:
+While our model achieves competitive performance (0.72 test F-Score), several directions could further improve results:
 \begin{itemize}
+    \item Longer training without early stopping (currently stopped at epoch 80; ongoing experiments with 300-400 epochs)
+    \item Enhanced regularization techniques (higher dropout, stronger weight decay) to utilize full parameter budget
     \item Test-time augmentation (TTA) for improved prediction robustness
     \item Advanced post-processing techniques like Conditional Random Fields (CRF) for boundary refinement
     \item Multi-scale training and inference strategies
-    \item Exploration of knowledge distillation from larger pre-trained models
 \end{itemize}
 
-Our implementation demonstrates that transformer-based architectures can be effectively scaled down for resource-constrained scenarios while maintaining competitive performance, making face parsing accessible for edge devices and real-time applications.
+\textbf{Broader Impact}: Our work demonstrates that attention-based architectures can effectively handle class imbalance through implicit mechanisms, reducing the need for manually engineered loss functions. The LMSA module's parameter efficiency (1.5\% overhead for 0.98\% gain) provides a template for designing lightweight attention mechanisms in other resource-constrained computer vision tasks. This makes face parsing and similar segmentation tasks accessible for edge devices and real-time applications.
 
-\textbf{Code Availability}: The complete implementation including training scripts, model architecture, and inference pipeline is available in the supplementary materials.
+\textbf{Code Availability}: The complete implementation including training scripts, model architecture, data augmentation pipeline, and inference code is available in the supplementary materials.
