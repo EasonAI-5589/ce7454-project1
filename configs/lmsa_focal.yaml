@@ -1,0 +1,99 @@
+# LMSA + Focal Loss Configuration
+# Strategy: Use Focal Loss to handle class imbalance and focus on hard examples
+# Target: 0.73+ F-Score by improving small object detection
+
+experiment:
+  name: "lmsa_focal_v1"
+  description: "MicroSegFormer with LMSA + Focal Loss - targeting small objects (eyes, ears, lips)"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.15        # Keep proven value
+  use_lmsa: true       # Architecture optimization
+
+data:
+  root: "data"
+  batch_size: 32       # Stable batch size
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 250          # Extended training for focal loss convergence
+  optimizer: "AdamW"
+  learning_rate: 5e-4  # Slightly lower LR for more stable focal loss training
+  weight_decay: 1e-4
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 10    # Longer warmup for focal loss
+  max_grad_norm: 1.0
+  early_stopping_patience: 60  # More patience
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  use_class_weights: false  # Focal Loss replaces class weights
+  use_focal: true          # 🔥 Enable Focal Loss
+  focal_alpha: 0.25        # α: balance factor (typical: 0.25)
+  focal_gamma: 2.0         # γ: focusing parameter (typical: 2.0)
+  # γ=2: Easy examples downweighted by ~4x when pt=0.9
+  #      Hard examples keep full weight
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 20            # Slightly increased
+  scale_range: [0.85, 1.15]  # Wider scale range
+  color_jitter:
+    brightness: 0.25      # Increased
+    contrast: 0.25        # Increased
+    saturation: 0.15      # Increased
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FOCAL LOSS STRATEGY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Problem Analysis:
+#   Current LMSA model: 0.6819 F-Score
+#   Strong on: Background, Skin, Hair (large classes)
+#   Weak on: Eyes, Ears, Nose, Lips (small classes, hard examples)
+#
+# Why Focal Loss?
+#   1. Class Imbalance:
+#      - Background: ~65% of pixels
+#      - Eyes: ~0.2% of pixels (325x less!)
+#      - Traditional CE: dominated by easy background pixels
+#
+#   2. Hard Example Mining:
+#      - Focal Loss: FL(pt) = -α(1-pt)^γ * log(pt)
+#      - Easy examples (pt→1): weight → 0
+#      - Hard examples (pt→0): weight → 1
+#      - Model forced to focus on misclassified regions
+#
+#   3. Parameters:
+#      - α = 0.25: standard value from paper
+#      - γ = 2.0: standard focusing strength
+#      - When pt=0.9 (easy): weight = 0.25 * 0.1^2 = 0.0025 (99% reduction!)
+#      - When pt=0.1 (hard): weight = 0.25 * 0.9^2 = 0.20 (20% reduction)
+#
+# Expected Improvements:
+#   - Small objects F-Score: +5-10% (especially eyes, ears, lips)
+#   - Overall F-Score: +3-5% → Target: 0.71-0.73
+#   - Better boundary delineation
+#   - More balanced performance across classes
+#
+# Training Adjustments:
+#   - Lower LR (5e-4): Focal loss creates stronger gradients
+#   - Longer warmup (10 epochs): Smooth transition to focal loss
+#   - Extended training (250 epochs): More time to learn hard examples
+#   - Enhanced augmentation: Create more hard examples for training
+#
+# Risk Mitigation:
+#   - If val loss oscillates: reduce γ to 1.5
+#   - If overfitting: increase dropout to 0.2
+#   - If underfitting: increase LR to 7e-4
+#
+# Academic Contribution:
+#   - Demonstrates understanding of loss function design
+#   - Shows systematic approach to class imbalance
+#   - Combines architecture (LMSA) + training strategy (Focal Loss)
+#

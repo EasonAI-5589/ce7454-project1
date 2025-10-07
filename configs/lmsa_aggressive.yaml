@@ -1,0 +1,100 @@
+# LMSA + Aggressive Optimization
+# Strategy: Focal Loss + Enhanced Dice + Strong Augmentation
+# Target: 0.75+ F-Score through comprehensive optimization
+
+experiment:
+  name: "lmsa_aggressive_v1"
+  description: "MicroSegFormer with LMSA + Focal Loss + Enhanced Loss Balancing"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.2         # Increased to prevent overfitting with aggressive training
+  use_lmsa: true
+
+data:
+  root: "data"
+  batch_size: 24       # Reduced for more gradient updates
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 300          # Extended training
+  optimizer: "AdamW"
+  learning_rate: 3e-4  # Lower LR for stable convergence
+  weight_decay: 2e-4   # Stronger regularization
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 15    # Extended warmup
+  max_grad_norm: 0.5   # Tighter gradient clipping
+  early_stopping_patience: 80
+  use_amp: true
+
+loss:
+  ce_weight: 0.7       # Reduce CE/Focal weight, let Dice dominate
+  dice_weight: 1.8     # Much higher dice weight (proven effective for small objects)
+  use_class_weights: false  # ❌ Proven ineffective (-11.4%)
+  use_focal: true      # 🔥 Focal Loss for hard examples
+  focal_alpha: 0.5     # Higher alpha (more aggressive)
+  focal_gamma: 2.5     # Higher gamma (stronger focusing)
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 25         # Aggressive rotation
+  scale_range: [0.8, 1.2]  # Wide scale variation
+  color_jitter:
+    brightness: 0.3
+    contrast: 0.3
+    saturation: 0.2
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# AGGRESSIVE OPTIMIZATION STRATEGY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Rationale:
+#   Current best: 0.6819 F-Score
+#   Gap to target: 0.75 - 0.6819 = 0.0681 (+10% improvement needed)
+#   This requires aggressive multi-pronged approach
+#
+# Three-Level Attack:
+#
+# 1. Architecture (LMSA):
+#    - Multi-scale attention for small objects
+#    - +1.4% parameters, targeted improvement
+#
+# 2. Loss Function (Focal Loss + Enhanced Dice):
+#    - Focal Loss: focus on hard examples and small objects
+#    - Enhanced Dice (weight=1.8): better overlap metric for small regions
+#    - Loss balancing: 0.7*Focal + 1.8*Dice (Dice dominates)
+#    - α=0.5, γ=2.5: more aggressive than standard
+#    - ❌ No class weights (proven ineffective, -11.4%)
+#
+# 3. Training Strategy:
+#    - Lower LR (3e-4): prevent overshooting with strong loss signals
+#    - Enhanced Dice weight (1.8): maximize small object detection
+#    - Stronger regularization (WD=2e-4, dropout=0.2): prevent overfitting
+#    - Smaller batch (24): more frequent updates, better generalization
+#
+# 4. Data Augmentation:
+#    - Wider ranges: model sees more variations
+#    - Creates harder examples during training
+#    - Forces model to learn robust features
+#
+# Risk Assessment:
+#   HIGH: Complex strategy, may overfit or diverge
+#   MEDIUM: Training will be slower (smaller batch, longer epochs)
+#   LOW: Model capacity within limits (parameter count safe)
+#
+# Monitoring:
+#   - If val loss diverges early (epoch < 50): too aggressive, abort
+#   - If val F-Score < 0.65 at epoch 100: reduce γ to 2.0
+#   - If train/val gap > 0.15: increase dropout to 0.25
+#
+# Success Criteria:
+#   - Target: Val F-Score > 0.75 by epoch 200
+#   - Acceptable: Val F-Score > 0.72 by epoch 250
+#   - Minimum: Val F-Score > 0.70 (still improvement)
+#
+# Time Estimate:
+#   - ~4-5 hours for full training (300 epochs)
+#   - Can early stop if target reached
+#
