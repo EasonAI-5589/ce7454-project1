@@ -1,0 +1,51 @@
+# Optimized V3 - Conservative fine-tuning
+# Changes: Minimal changes, focus on training stability
+
+experiment:
+  name: "optimized_v3_conservative"
+  description: "Conservative tuning based on 0.6753 baseline - targeting 0.70-0.72 F-Score"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.12      # Slightly reduced from 0.15 (less aggressive)
+
+data:
+  root: "data"
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 300        # Much longer training
+  optimizer: "AdamW"
+  learning_rate: 7e-4  # Slightly lower than 8e-4 (more stable)
+  weight_decay: 1e-4
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 8     # Slightly increased from 5
+  max_grad_norm: 1.0
+  early_stopping_patience: 80  # Very patient (let it train)
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0   # Keep proven ratio
+  use_class_weights: false
+  use_focal: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15       # Keep proven value
+  scale_range: [0.9, 1.1]  # Keep proven range
+  color_jitter:
+    brightness: 0.25   # Slight increase from 0.2
+    contrast: 0.25     # Slight increase from 0.2
+    saturation: 0.12   # Slight increase from 0.1
+
+# Strategy: Conservative changes
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - Slightly reduce dropout (0.15→0.12): less regularization
+# - Slightly lower LR (8e-4→7e-4): more stable convergence
+# - Much longer training (200→300): let model fully converge
+# - Very patient early stopping (50→80): don't stop too early
+# - Minimal augmentation changes: keep what works

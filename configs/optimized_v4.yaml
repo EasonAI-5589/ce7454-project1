@@ -1,0 +1,52 @@
+# Optimized V4 - Scheduler tuning
+# Changes: Different learning rate schedule strategy
+
+experiment:
+  name: "optimized_v4_scheduler"
+  description: "LR scheduler tuning based on 0.6753 baseline - targeting 0.72+ F-Score"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.15
+
+data:
+  root: "data"
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 250
+  optimizer: "AdamW"
+  learning_rate: 1.2e-3  # Higher initial LR (will decay faster)
+  weight_decay: 1e-4
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 15      # Longer warmup for higher LR
+  max_grad_norm: 1.0
+  early_stopping_patience: 70
+  use_amp: true
+  # Note: Cosine will decay 1.2e-3 → 0 over 250 epochs
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  use_class_weights: false
+  use_focal: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 18         # Between 15 and 20
+  scale_range: [0.88, 1.12]
+  color_jitter:
+    brightness: 0.25
+    contrast: 0.25
+    saturation: 0.12
+
+# Strategy: Higher LR with better scheduling
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - Start with higher LR (1.2e-3) for faster initial learning
+# - Longer warmup (15 epochs) to stabilize high LR start
+# - Let cosine decay handle the learning rate reduction
+# - Should converge faster in early epochs
+# - Fine-tune in later epochs with low LR

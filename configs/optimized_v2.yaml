@@ -1,0 +1,52 @@
+# Optimized V2 - Fine-tuning based on 0.6753 baseline
+# Changes: Slightly higher LR + longer warmup + more aggressive augmentation
+
+experiment:
+  name: "optimized_v2"
+  description: "Fine-tuned hyperparameters based on 0.6753 baseline - targeting 0.72+ F-Score"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  dropout: 0.15      # Keep proven dropout rate
+
+data:
+  root: "data"
+  batch_size: 32     # Keep proven batch size
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 250        # Increased from 200 (train longer)
+  optimizer: "AdamW"
+  learning_rate: 1e-3  # Slightly higher than 8e-4 (faster initial learning)
+  weight_decay: 8e-5   # Slightly reduced (less regularization)
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 10    # Doubled from 5 (more stable warmup)
+  max_grad_norm: 1.0
+  early_stopping_patience: 60  # Increased from 50
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.2   # Increased from 1.0 (emphasize dice more)
+  use_class_weights: false
+  use_focal: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 20         # Increased from 15 (more rotation)
+  scale_range: [0.85, 1.15]  # Wider range than [0.9, 1.1]
+  color_jitter:
+    brightness: 0.3    # Increased from 0.2
+    contrast: 0.3      # Increased from 0.2
+    saturation: 0.15   # Increased from 0.1
+
+# Key Changes from optimized.yaml:
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. LR: 8e-4 → 1e-3 (25% increase, faster learning)
+# 2. Warmup: 5 → 10 epochs (more stable start)
+# 3. Dice weight: 1.0 → 1.2 (emphasize F-Score optimization)
+# 4. Augmentation: More aggressive (better generalization)
+# 5. Epochs: 200 → 250 (more training time)
+# 6. Weight decay: 1e-4 → 8e-5 (slight reduction)

@@ -13,6 +13,7 @@ from datetime import datetime
 from src.trainer import Trainer, create_optimizer, create_scheduler
 from src.dataset import create_train_val_loaders
 from src.models.microsegformer import MicroSegFormer
+from src.models.unet import UNet
 from src.utils import CombinedLoss
 
 
@@ -28,20 +29,25 @@ def setup_model(config):
     model_name = config['model']['name']
     num_classes = config['model']['num_classes']
     dropout = config['model'].get('dropout', 0.0)
-    use_lmsa = config['model'].get('use_lmsa', False)
 
     if model_name == 'microsegformer':
+        use_lmsa = config['model'].get('use_lmsa', False)
         model = MicroSegFormer(num_classes=num_classes, dropout=dropout, use_lmsa=use_lmsa)
+    elif model_name == 'unet':
+        base_channels = config['model'].get('base_channels', 20)
+        bilinear = config['model'].get('bilinear', True)
+        model = UNet(n_channels=3, n_classes=num_classes, base_channels=base_channels,
+                     bilinear=bilinear, dropout=dropout)
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
     return model
 
 
-def create_output_dir(base_dir='checkpoints'):
+def create_output_dir(model_name='microsegformer', base_dir='checkpoints'):
     """Create timestamped output directory"""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_dir = os.path.join(base_dir, f'microsegformer_{timestamp}')
+    output_dir = os.path.join(base_dir, f'{model_name}_{timestamp}')
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
@@ -124,7 +130,7 @@ def main():
     scheduler = create_scheduler(optimizer, config['training'], config['training']['epochs'])
 
     # Create output directory
-    output_dir = create_output_dir()
+    output_dir = create_output_dir(model_name=config['model']['name'])
     config['output_dir'] = output_dir
 
     print(f"\nOutput directory: {output_dir}")
