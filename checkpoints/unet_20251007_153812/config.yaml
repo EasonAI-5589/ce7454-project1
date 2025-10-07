@@ -14,21 +14,21 @@ data:
   root: data
   val_split: 0.1
 experiment:
-  description: MicroSegFormer with class weights - targeting 0.72+ F-Score (breakthrough
-    to 0.75)
-  name: class_weighted_v1
+  description: U-Net baseline for comparison with MicroSegFormer - targeting 0.65+
+    F-Score
+  name: unet_baseline
 loss:
   ce_weight: 1.0
   dice_weight: 1.0
-  focal_alpha: 0.25
-  focal_gamma: 2.0
-  use_class_weights: true
+  use_class_weights: false
   use_focal: false
 model:
+  base_channels: 20
+  bilinear: true
   dropout: 0.15
-  name: microsegformer
+  name: unet
   num_classes: 19
-output_dir: checkpoints/microsegformer_20251006_153529
+output_dir: checkpoints/unet_20251007_153812
 training:
   early_stopping_patience: 50
   epochs: 200
