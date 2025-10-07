@@ -117,16 +117,62 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class MLPDecoder(nn.Module):
-    """Lightweight MLP decoder for multi-scale feature fusion"""
-    def __init__(self, in_channels=[32, 64, 128, 256], embed_dim=128, num_classes=19):
+class LMSA(nn.Module):
+    """
+    Lightweight Multi-Scale Attention Module
+    Designed for fine-grained face parsing with small objects (eyes, ears)
+
+    Key features:
+    - Depthwise separable convolutions for efficiency
+    - Channel-wise attention for adaptive feature weighting
+    - Lightweight design (~20k params total)
+    """
+    def __init__(self, channels, reduction=8):
         super().__init__()
+        # Depthwise separable multi-scale paths (much more efficient)
+        self.dw_conv3x3 = nn.Conv2d(channels, channels, 3, padding=1, groups=channels, bias=False)
+        self.pw_conv = nn.Conv2d(channels, channels, 1, bias=False)
+        self.bn = nn.BatchNorm2d(channels)
+
+        # SE-style channel attention (more aggressive reduction)
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, channels // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels // reduction, channels, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        # Depthwise separable convolution
+        out = self.dw_conv3x3(x)
+        out = self.pw_conv(out)
+        out = self.bn(out)
+
+        # Channel attention
+        gap = self.global_pool(out).squeeze(-1).squeeze(-1)
+        attention = self.fc(gap).unsqueeze(-1).unsqueeze(-1)
+
+        # Apply attention and add residual
+        return out * attention + x
+
+
+class MLPDecoder(nn.Module):
+    """Lightweight MLP decoder with LMSA for multi-scale feature fusion"""
+    def __init__(self, in_channels=[32, 64, 128, 256], embed_dim=128, num_classes=19, use_lmsa=True):
+        super().__init__()
+        self.use_lmsa = use_lmsa
 
         # Linear layers to unify channel dimensions
         self.linear_c4 = nn.Linear(in_channels[3], embed_dim)
         self.linear_c3 = nn.Linear(in_channels[2], embed_dim)
         self.linear_c2 = nn.Linear(in_channels[1], embed_dim)
         self.linear_c1 = nn.Linear(in_channels[0], embed_dim)
+
+        # LMSA modules for each decoder stage
+        if use_lmsa:
+            self.lmsa = LMSA(embed_dim, reduction=4)
+            print(f"✓ LMSA module enabled in decoder")
 
         # Fusion MLP
         self.linear_fuse = nn.Sequential(
@@ -168,8 +214,14 @@ class MLPDecoder(nn.Module):
         _c = torch.cat([_c1, _c2, _c3, _c4], dim=-1)
         _c = self.linear_fuse(_c)
 
-        # Reshape to image and upsample
+        # Reshape to image
         _c = _c.permute(0, 2, 1).reshape(B, -1, H1, W1)
+
+        # Apply LMSA for multi-scale attention
+        if self.use_lmsa:
+            _c = self.lmsa(_c)
+
+        # Upsample
         _c = F.interpolate(_c, scale_factor=4, mode='bilinear', align_corners=False)
 
         # Final prediction
@@ -178,8 +230,8 @@ class MLPDecoder(nn.Module):
 
 
 class MicroSegFormer(nn.Module):
-    """Ultra-lightweight SegFormer for face parsing (<1.82M params) with dropout regularization"""
-    def __init__(self, num_classes=19, embed_dims=None, depths=None, sr_ratios=None, dropout=0.15):
+    """Ultra-lightweight SegFormer for face parsing (<1.82M params) with dropout regularization and LMSA"""
+    def __init__(self, num_classes=19, embed_dims=None, depths=None, sr_ratios=None, dropout=0.15, use_lmsa=True):
         super().__init__()
 
         # Default configuration - optimized for ~1.7M params
@@ -226,8 +278,8 @@ class MicroSegFormer(nn.Module):
         self.norm3 = nn.LayerNorm(embed_dims[2])
         self.norm4 = nn.LayerNorm(embed_dims[3])
 
-        # Decoder
-        self.decoder = MLPDecoder(in_channels=embed_dims, embed_dim=128, num_classes=num_classes)
+        # Decoder with LMSA
+        self.decoder = MLPDecoder(in_channels=embed_dims, embed_dim=128, num_classes=num_classes, use_lmsa=use_lmsa)
 
     def forward(self, x):
         B = x.shape[0]

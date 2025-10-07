@@ -17,7 +17,8 @@
       "Bash(pdflatex:*)",
       "Bash(bibtex:*)",
       "Bash(git commit:*)",
-      "Bash(./regenerate_masks.sh:*)"
+      "Bash(./regenerate_masks.sh:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
