@@ -35,8 +35,8 @@ def main(input, output, weights):
     # Convert to PyTorch tensor and add batch dimension
     img_tensor = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).to(device)
 
-    # Initialize the model (with dropout parameter for compatibility)
-    model = MicroSegFormer(num_classes=19, dropout=0.15)
+    # Initialize the model with LMSA (matching checkpoint)
+    model = MicroSegFormer(num_classes=19, dropout=0.15, use_lmsa=True)
     model = model.to(device)
 
     # Load the checkpoint
