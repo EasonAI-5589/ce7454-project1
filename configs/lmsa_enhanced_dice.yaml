@@ -1,0 +1,48 @@
+# LMSA v2 - Enhanced Dice Weight
+# 策略: 提高Dice Loss权重来更好地处理小目标
+# 目标: 改善对小类别(eyes, ears, lips)的分割效果
+
+experiment:
+  name: "lmsa_enhanced_dice"
+  description: "Best config (0.6819) with enhanced Dice weight for small objects"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15        # ✅ 保持最佳
+
+data:
+  root: "data"
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 300          # ↑ 适度增加
+  optimizer: "AdamW"
+  learning_rate: 8e-4  # ✅ 保持最佳
+  weight_decay: 1e-4   # ✅ 保持最佳
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: null  # 移除early stopping
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5     # ↑ 从1.0增加到1.5，强化小目标检测
+  use_class_weights: false
+  use_focal: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+# 策略: Dice Loss更适合小目标的overlap metric
+# 预期: Val 0.69-0.71, Test 0.73-0.75

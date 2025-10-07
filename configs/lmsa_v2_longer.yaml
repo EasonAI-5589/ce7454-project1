@@ -1,0 +1,48 @@
+# LMSA v2 - Longer Training
+# 策略: 保持最佳配置不变，只是训练更久
+# 目标: 看模型是否还有提升空间
+
+experiment:
+  name: "lmsa_v2_longer"
+  description: "Best config (0.6819) but train longer - 400 epochs"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15        # ✅ 保持最佳
+
+data:
+  root: "data"
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 400          # ↑ 从200增加到400
+  optimizer: "AdamW"
+  learning_rate: 8e-4  # ✅ 保持最佳
+  weight_decay: 1e-4   # ✅ 保持最佳
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: null  # 移除early stopping
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  use_class_weights: false
+  use_focal: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+# 策略: 几乎不改动，只延长训练看是否还能提升
+# 预期: Val 0.69-0.71, Test 0.73-0.75

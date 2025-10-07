@@ -1,0 +1,49 @@
+# LMSA v2 - Strong Augmentation
+# 策略: 保持最佳配置，增强数据增强来提升泛化能力
+# 目标: 减小train/val gap，提升测试集表现
+
+experiment:
+  name: "lmsa_strong_aug"
+  description: "Best config (0.6819) with enhanced augmentation for better generalization"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15        # ✅ 保持最佳
+
+data:
+  root: "data"
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 300          # ↑ 适度增加
+  optimizer: "AdamW"
+  learning_rate: 8e-4  # ✅ 保持最佳
+  weight_decay: 1e-4   # ✅ 保持最佳
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: null  # 移除early stopping
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  use_class_weights: false
+  use_focal: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 20         # ↑ 从15增加到20
+  scale_range: [0.85, 1.15]  # ↑ 从[0.9, 1.1]扩大范围
+  color_jitter:
+    brightness: 0.3    # ↑ 从0.2增加到0.3
+    contrast: 0.3      # ↑ 从0.2增加到0.3
+    saturation: 0.15   # ↑ 从0.1增加到0.15
+
+# 策略: 更强的数据增强提升模型鲁棒性
+# 帮助模型在测试集上表现更好
+# 预期: Val 0.67-0.69, Test 0.72-0.74 (可能val稍低但test更好)
