@@ -56,8 +56,9 @@ class Trainer:
         self.best_model_path = os.path.join(self.output_dir, 'best_model.pth')
         self.last_model_path = os.path.join(self.output_dir, 'last_model.pth')
 
-        # Early stopping
+        # Early stopping (can be None to disable)
         self.early_stopping_patience = config.get('early_stopping_patience', 20)
+        self.use_early_stopping = self.early_stopping_patience is not None
 
         # Gradient clipping
         self.max_grad_norm = config.get('max_grad_norm', 1.0)
@@ -71,7 +72,10 @@ class Trainer:
         print(f"Trainer initialized:")
         print(f"  Device: {device}")
         print(f"  Output dir: {self.output_dir}")
-        print(f"  Early stopping patience: {self.early_stopping_patience}")
+        if self.use_early_stopping:
+            print(f"  Early stopping patience: {self.early_stopping_patience}")
+        else:
+            print(f"  Early stopping: DISABLED (will train full epochs)")
         print(f"  Max grad norm: {self.max_grad_norm}")
         print(f"  Mixed precision: {self.use_amp}")
 
@@ -178,6 +182,15 @@ class Trainer:
 
     def check_early_stop(self, val_f_score):
         """Check if should early stop"""
+        # If early stopping is disabled, never stop
+        if not self.use_early_stopping:
+            # Still track best score
+            if val_f_score > self.best_f_score:
+                self.best_f_score = val_f_score
+                self.best_epoch = self.current_epoch
+            return False
+
+        # Normal early stopping logic
         if val_f_score > self.best_f_score:
             self.best_f_score = val_f_score
             self.best_epoch = self.current_epoch

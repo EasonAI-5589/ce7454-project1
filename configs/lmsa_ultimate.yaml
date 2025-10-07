@@ -1,0 +1,152 @@
+# LMSA Ultimate Configuration - 目标突破0.75
+# 基于最佳实践: LMSA模块 + 简洁损失 + 充分训练
+# 关键改进: 移除early stopping, 增强正则化, 优化超参数
+
+experiment:
+  name: "lmsa_ultimate_v1"
+  description: "LMSA with no early stopping - full training for maximum performance"
+
+model:
+  name: "microsegformer"
+  num_classes: 19
+  use_lmsa: true          # ✅ 证明有效 (+0.98%)
+  dropout: 0.18           # ↑ 从0.15增加到0.18 (更强正则化)
+
+data:
+  root: "data"
+  batch_size: 32          # 保持最佳配置
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 350             # ↑ 从200增加到350 (充分训练)
+  optimizer: "AdamW"
+  learning_rate: 8e-4     # ✅ 保持最佳LR
+  weight_decay: 1.5e-4    # ↑ 从1e-4增加 (更强正则化)
+  scheduler: "CosineAnnealingLR"
+  warmup_epochs: 12       # ↑ 从5增加到12 (更平滑启动)
+  max_grad_norm: 1.0
+  early_stopping_patience: null  # ❌ 移除early stopping!
+  use_amp: true
+
+loss:
+  ce_weight: 1.0          # ✅ 保持简单有效的配置
+  dice_weight: 1.0
+  use_class_weights: false  # ❌ 证明无效
+  use_focal: false         # ❌ 证明无效
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 18            # ↑ 从15增加到18
+  scale_range: [0.88, 1.12]  # ↑ 从[0.9, 1.1]增加范围
+  color_jitter:
+    brightness: 0.22      # ↑ 轻微增加
+    contrast: 0.22        # ↑ 轻微增加
+    saturation: 0.12      # 保持
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ULTIMATE CONFIGURATION RATIONALE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 基于完整实验分析 (见 EXPERIMENT_ANALYSIS.md)
+#
+# 核心策略: "充分训练 + 强正则化"
+# ══════════════════════════════════════════
+#
+# 1. 移除Early Stopping
+#    问题: 当前总在~100 epochs停止，模型未充分训练
+#    证据: Train Acc 0.9298 < 0.95 (还有空间)
+#    解决: 训练满350 epochs，用best model防过拟合
+#
+# 2. 增强正则化
+#    原因: 更长训练需要更强正则化防止过拟合
+#    措施:
+#      - Dropout: 0.15 → 0.18 (+20%)
+#      - Weight Decay: 1e-4 → 1.5e-4 (+50%)
+#      - 数据增强: 轻微增强
+#
+# 3. 保持经过验证的有效策略
+#    ✅ LMSA模块 (核心创新)
+#    ✅ CE + Dice (1:1) 简单有效
+#    ✅ LR=8e-4 (比5e-4更好)
+#    ✅ AdamW + CosineAnnealing
+#    ❌ 不用Focal Loss (证明无效)
+#    ❌ 不用Class Weights (LMSA下无效)
+#
+# 4. 优化训练稳定性
+#    - Warmup: 5 → 12 epochs (更平滑)
+#    - Epochs: 200 → 350 (充分训练)
+#    - Batch size: 32 (最佳平衡)
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# EXPECTED RESULTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 基于当前最佳 (Val 0.6819, Test 0.72):
+#
+# 保守预期:
+#   - Val F-Score: 0.69-0.70
+#   - Test F-Score: 0.73-0.74
+#   - 原因: 充分训练 + 更强正则化
+#
+# 理想预期:
+#   - Val F-Score: 0.70-0.72
+#   - Test F-Score: 0.74-0.76
+#   - 条件: 模型充分学习且不过拟合
+#
+# 风险评估:
+#   - 过拟合风险: 中 (通过dropout和data aug缓解)
+#   - 训练时间: ~6-8小时 (350 epochs)
+#   - 收益/风险: 高 (Test可能突破0.75!)
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MONITORING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 关键检查点:
+#
+# Epoch 100:
+#   - 应该超过之前的0.6819
+#   - 如果没有，说明配置有问题
+#
+# Epoch 200:
+#   - Val F-Score应该到达峰值或接近
+#   - Train/Val gap监控 (不应>0.1)
+#
+# Epoch 300+:
+#   - 观察是否还在提升
+#   - 或者已经收敛
+#
+# 停止条件:
+#   - Train Acc > 0.95 且 Val F-Score不再提升 → 收敛
+#   - Train/Val gap > 0.15 → 严重过拟合，应该停止
+#   - 否则训练满350 epochs
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# COMPARISON WITH PREVIOUS BEST
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# microsegformer_20251007_153857 (当前最佳):
+#   - Epochs: 100 (early stopped)
+#   - Dropout: 0.15
+#   - Weight Decay: 1e-4
+#   - Augmentation: Moderate
+#   - Val: 0.6819, Test: 0.72
+#
+# lmsa_ultimate_v1 (本配置):
+#   - Epochs: 350 (no early stop)
+#   - Dropout: 0.18 ↑
+#   - Weight Decay: 1.5e-4 ↑
+#   - Augmentation: Enhanced
+#   - Val: ?, Test: ? (预期提升)
+#
+# 关键差异:
+#   1. 充分训练 (350 vs 100 epochs)
+#   2. 更强正则化
+#   3. 移除early stopping干扰
+#
+# 预期优势:
+#   - 模型容量充分利用
+#   - 更好的泛化能力
+#   - Test F-Score可能突破0.75!
+#
