@@ -1,0 +1,42 @@
+augmentation:
+  color_jitter:
+    brightness: 0.25
+    contrast: 0.25
+    saturation: 0.15
+  horizontal_flip: 0.5
+  rotation: 20
+  scale_range:
+  - 0.85
+  - 1.15
+data:
+  batch_size: 32
+  num_workers: 16
+  root: data
+  val_split: 0.1
+experiment:
+  description: MicroSegFormer with LMSA + Focal Loss - targeting small objects (eyes,
+    ears, lips)
+  name: lmsa_focal_v1
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.0
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+  use_class_weights: false
+  use_focal: true
+model:
+  dropout: 0.15
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+output_dir: checkpoints/microsegformer_20251007_224140
+training:
+  early_stopping_patience: 60
+  epochs: 250
+  learning_rate: 5e-4
+  max_grad_norm: 1.0
+  optimizer: AdamW
+  scheduler: CosineAnnealingLR
+  use_amp: true
+  warmup_epochs: 10
+  weight_decay: 1e-4
