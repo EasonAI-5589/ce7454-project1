@@ -1,42 +1,37 @@
-# 保守的继续训练配置 - 尽量保持原配置不变
-
 experiment:
   name: lmsa_continue_conservative
   description: Continue from best model (0.6889) with minimal changes
-
 model:
   name: microsegformer
   num_classes: 19
   use_lmsa: true
-  dropout: 0.15  # 保持原始值,不改!
-
+  dropout: 0.15
 data:
   root: data
   batch_size: 32
   num_workers: 16
   val_split: 0.1
-
 training:
-  epochs: 150  # 只是继续训练更多epochs
+  epochs: 150
   optimizer: AdamW
-  learning_rate: 8e-4  # 保持原始学习率
-  weight_decay: 1.5e-4  # 只轻微增加 (1e-4 -> 1.5e-4)
+  learning_rate: 8e-4
+  weight_decay: 0.00015
   scheduler: CosineAnnealingLR
-  warmup_epochs: 5  # 保持原始warmup
+  warmup_epochs: 5
   max_grad_norm: 1.0
-  early_stopping_patience: 40  # 更宽松的early stopping
+  early_stopping_patience: 100
   use_amp: true
-
 loss:
   ce_weight: 1.0
-  dice_weight: 1.5  # 保持最佳配置
+  dice_weight: 1.5
   use_focal: false
   use_class_weights: false
-
 augmentation:
   horizontal_flip: 0.5
   rotation: 15
-  scale_range: [0.9, 1.1]
+  scale_range:
+  - 0.9
+  - 1.1
   color_jitter:
     brightness: 0.2
     contrast: 0.2

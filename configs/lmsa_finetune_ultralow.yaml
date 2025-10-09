@@ -38,8 +38,8 @@ training:
   weight_decay: 2e-4  # Slightly higher for regularization
   scheduler: CosineAnnealingLR
   warmup_epochs: 0  # No warmup for fine-tuning
-  epochs: 80
-  early_stopping_patience: 15  # More aggressive early stop
+  epochs: 200
+  early_stopping_patience: 100  # Very patient - allow full exploration
   max_grad_norm: 0.5  # Lower gradient clipping for stability
   use_amp: true
 
