@@ -1,0 +1,44 @@
+# Fresh Training with Dice Weight 2.0
+# Goal: Test if higher Dice weight (2.0) improves small object detection
+
+experiment:
+  name: lmsa_dice2.0_fresh
+  description: "Fresh training with Dice=2.0 - aggressive small object optimization"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.1
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8  # Reduced from 16 to avoid worker warning
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.0  # ⬆️ Increased from 1.5 to 2.0
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 8e-4
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 5
+  epochs: 150
+  early_stopping_patience: 25  # Slightly more patient
+  max_grad_norm: 1.0
+  use_amp: true

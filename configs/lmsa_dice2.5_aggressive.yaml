@@ -1,0 +1,44 @@
+# Aggressive Training with Dice Weight 2.5
+# Goal: Maximum small object optimization with strong regularization
+
+experiment:
+  name: lmsa_dice2.5_aggressive
+  description: "Dice=2.5 with dropout 0.2 - maximum small object focus"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.2  # ⬆️ Higher dropout for regularization
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.5  # ⬆️⬆️ Very aggressive Dice weighting
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 6e-4  # Slightly lower than 8e-4 for stability
+  weight_decay: 2e-4  # Higher weight decay
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 5
+  epochs: 200  # Train longer without early stopping
+  early_stopping_patience: 999  # Disable early stopping (effectively infinite patience)
+  max_grad_norm: 1.0
+  use_amp: true
