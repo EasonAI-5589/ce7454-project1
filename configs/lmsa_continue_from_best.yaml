@@ -1,0 +1,44 @@
+# 从最佳模型继续训练的配置
+# 目标: 在 epoch 92 基础上继续优化,增加正则化防止过拟合
+
+experiment:
+  name: lmsa_continue_v2
+  description: Continue from best model (0.6889) with enhanced regularization
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.20  # 从 0.15 增加到 0.20,防止过拟合
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 16
+  val_split: 0.1
+
+training:
+  epochs: 200  # 从 epoch 92 继续,再训练 100-108 epochs 到 200
+  optimizer: AdamW
+  learning_rate: 4e-4  # 降低学习率,从 8e-4 到 4e-4
+  weight_decay: 2e-4  # 增加 weight decay,从 1e-4 到 2e-4
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 0  # 不需要 warmup,直接继续训练
+  max_grad_norm: 1.0
+  early_stopping_patience: 30  # 设置 30 epochs patience
+  use_amp: true
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5  # 保持最佳配置
+  use_focal: false
+  use_class_weights: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1

@@ -57,7 +57,7 @@ class Trainer:
         self.last_model_path = os.path.join(self.output_dir, 'last_model.pth')
 
         # Early stopping (can be None to disable)
-        self.early_stopping_patience = config.get('early_stopping_patience', 20)
+        self.early_stopping_patience = config.get('training', {}).get('early_stopping_patience', 20)
         self.use_early_stopping = self.early_stopping_patience is not None
 
         # Gradient clipping
