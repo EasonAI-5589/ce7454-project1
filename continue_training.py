@@ -16,8 +16,16 @@ from pathlib import Path
 
 from src.models.microsegformer import MicroSegFormer
 from src.dataset import create_train_val_loaders
-from src.trainer import Trainer
-from src.utils import CombinedLoss, create_optimizer, create_scheduler, create_output_dir
+from src.trainer import Trainer, create_optimizer, create_scheduler
+from src.utils import CombinedLoss
+from datetime import datetime
+
+def create_output_dir(model_name='microsegformer', base_dir='checkpoints'):
+    """Create timestamped output directory"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_dir = os.path.join(base_dir, f'{model_name}_{timestamp}')
+    os.makedirs(output_dir, exist_ok=True)
+    return output_dir
 
 def load_checkpoint_for_continue(checkpoint_path, model, optimizer=None, scheduler=None, reset_optimizer=False):
     """
