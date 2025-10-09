@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 
 from src.models.microsegformer import MicroSegFormer
-from src.dataset import get_dataloaders
+from src.dataset import create_train_val_loaders
 from src.loss import SegmentationLoss
 from src.trainer import Trainer
 from src.utils import create_optimizer, create_scheduler, create_output_dir
@@ -117,7 +117,7 @@ def main():
     
     # Get dataloaders
     print("\nLoading dataset...")
-    train_loader, val_loader = get_dataloaders(
+    train_loader, val_loader = create_train_val_loaders(
         data_root=config['data']['root'],
         batch_size=config['data']['batch_size'],
         num_workers=config['data']['num_workers'],
