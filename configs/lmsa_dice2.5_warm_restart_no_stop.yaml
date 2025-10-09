@@ -40,7 +40,7 @@ training:
   scheduler_params:
     T_0: 30          # 略长的第一周期
     T_mult: 2
-    eta_min: 1e-6
+    eta_min: 1e-6  # 1e-6
   warmup_epochs: 8   # 更长warmup给Dice 2.5适应
   epochs: 200
   early_stopping_patience: 999  # 不早停

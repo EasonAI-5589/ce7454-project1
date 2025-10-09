@@ -40,7 +40,7 @@ training:
   scheduler_params:
     T_0: 25          # 第一次重启25轮
     T_mult: 2        # 周期翻倍
-    eta_min: 1e-6
+    eta_min: 1e-6  # 1e-6
   warmup_epochs: 5
   epochs: 200        # 训练足够长
   early_stopping_patience: 999  # 🔥 不早停！

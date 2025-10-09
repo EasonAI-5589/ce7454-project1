@@ -40,7 +40,7 @@ training:
   scheduler_params:
     T_0: 25          # 第一次重启在25轮（对应原来Epoch 92附近）
     T_mult: 2        # 之后周期翻倍：25, 50, 100
-    eta_min: 1e-6    # 最低LR
+    eta_min: 1e-6  # 最低LR (1e-6)
   warmup_epochs: 5
   epochs: 200
   early_stopping_patience: 100

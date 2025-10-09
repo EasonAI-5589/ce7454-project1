@@ -337,15 +337,15 @@ def create_scheduler(optimizer, config, num_epochs):
     # Main scheduler
     if scheduler_type == 'CosineAnnealingLR':
         # Support custom T_max from scheduler_params
-        T_max = scheduler_params.get('T_max', num_epochs - warmup_epochs)
-        eta_min = scheduler_params.get('eta_min', 0)
+        T_max = int(scheduler_params.get('T_max', num_epochs - warmup_epochs))
+        eta_min = float(scheduler_params.get('eta_min', 0))  # Convert to float to handle "1e-6" strings
         main_scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=eta_min)
 
     elif scheduler_type == 'CosineAnnealingWarmRestarts':
         # New: Support for warm restarts
-        T_0 = scheduler_params.get('T_0', 30)
-        T_mult = scheduler_params.get('T_mult', 2)
-        eta_min = scheduler_params.get('eta_min', 0)
+        T_0 = int(scheduler_params.get('T_0', 30))
+        T_mult = int(scheduler_params.get('T_mult', 2))
+        eta_min = float(scheduler_params.get('eta_min', 0))  # Convert to float to handle "1e-6" strings
         main_scheduler = CosineAnnealingWarmRestarts(
             optimizer,
             T_0=T_0,
