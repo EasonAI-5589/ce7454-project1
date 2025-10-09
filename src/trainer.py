@@ -180,30 +180,6 @@ class Trainer:
             'accuracy': accuracies.avg
         }
 
-    def check_early_stop(self, val_f_score):
-        """Check if should early stop"""
-        # If early stopping is disabled, never stop
-        if not self.use_early_stopping:
-            # Still track best score
-            if val_f_score > self.best_f_score:
-                self.best_f_score = val_f_score
-                self.best_epoch = self.current_epoch
-            return False
-
-        # Normal early stopping logic
-        if val_f_score > self.best_f_score:
-            self.best_f_score = val_f_score
-            self.best_epoch = self.current_epoch
-            self.patience_counter = 0
-            return False
-        else:
-            self.patience_counter += 1
-            if self.patience_counter >= self.early_stopping_patience:
-                print(f"\nEarly stopping triggered! No improvement for {self.early_stopping_patience} epochs.")
-                print(f"Best F-Score: {self.best_f_score:.4f} at epoch {self.best_epoch}")
-                return True
-            return False
-
     def save_checkpoint(self, filepath, is_best=False):
         """Save model checkpoint"""
         checkpoint = {
@@ -263,16 +239,29 @@ class Trainer:
                   f"F-Score: {val_metrics['f_score']:.4f}, Acc: {val_metrics['accuracy']:.4f}")
             print(f"  LR: {current_lr:.6f}")
 
-            # Save best model
-            if val_metrics['f_score'] > self.best_f_score:
+            # Check if this is a new best score and update BEFORE saving
+            is_new_best = val_metrics['f_score'] > self.best_f_score
+            if is_new_best:
+                self.best_f_score = val_metrics['f_score']
+                self.best_epoch = self.current_epoch
+
+            # Save best model (now with updated best_f_score)
+            if is_new_best:
                 self.save_checkpoint(self.best_model_path, is_best=True)
 
             # Save last model
             self.save_checkpoint(self.last_model_path, is_best=False)
 
-            # Early stopping check
-            if self.check_early_stop(val_metrics['f_score']):
-                break
+            # Early stopping check (patience counter)
+            if self.use_early_stopping:
+                if is_new_best:
+                    self.patience_counter = 0
+                else:
+                    self.patience_counter += 1
+                    if self.patience_counter >= self.early_stopping_patience:
+                        print(f"\nEarly stopping triggered! No improvement for {self.early_stopping_patience} epochs.")
+                        print(f"Best F-Score: {self.best_f_score:.4f} at epoch {self.best_epoch+1}")
+                        break
 
         # Training completed
         end_time = time.time()
