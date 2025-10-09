@@ -3,9 +3,10 @@ Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: main.aux
 The style file: ieeenat_fullname.bst
 Database file #1: main.bib
+Warning--I didn't find a database entry for "lin2017focal"
 You've used 1 entry,
             2708 wiz_defined-function locations,
-            665 strings with 5593 characters,
+            666 strings with 5605 characters,
 and the built_in function-call counts, 617 in all, are:
 = -- 43
 > -- 57
@@ -44,3 +45,4 @@ warning$ -- 0
 while$ -- 3
 width$ -- 0
 write$ -- 19
+(There was 1 warning)

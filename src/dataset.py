@@ -201,13 +201,23 @@ def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0
 
     pin_memory = torch.cuda.is_available()
 
-    # Create dataloaders
+    # Optimize num_workers to avoid CPU bottleneck
+    # Rule of thumb: 4-8 workers is usually optimal
+    optimal_workers = min(num_workers, 8)
+    if num_workers > 8:
+        print(f"  ⚠️  num_workers={num_workers} too high, using {optimal_workers} for better performance")
+        num_workers = optimal_workers
+
+    # Create dataloaders with optimizations
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        prefetch_factor=2 if num_workers > 0 else None,  # Prefetch 2 batches per worker
+        persistent_workers=True if num_workers > 0 else False,  # Keep workers alive between epochs
+        drop_last=True  # Drop incomplete last batch for consistent training
     )
 
     val_loader = DataLoader(
@@ -215,7 +225,10 @@ def create_train_val_loaders(data_root, batch_size=8, num_workers=2, val_split=0
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        prefetch_factor=2 if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False,
+        drop_last=False  # Keep all validation data
     )
 
     return train_loader, val_loader

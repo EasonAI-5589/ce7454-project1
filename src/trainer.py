@@ -29,7 +29,8 @@ class Trainer:
         optimizer,
         scheduler,
         config,
-        device='cuda'
+        device='cuda',
+        gpu_augmentation=None
     ):
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -39,6 +40,12 @@ class Trainer:
         self.scheduler = scheduler
         self.config = config
         self.device = device
+
+        # GPU-based augmentation (optional)
+        self.gpu_augmentation = gpu_augmentation
+        if gpu_augmentation is not None:
+            self.gpu_augmentation = gpu_augmentation.to(device)
+            print("  ✓ GPU augmentation enabled")
 
         # Training state
         self.current_epoch = 0
@@ -90,6 +97,11 @@ class Trainer:
         for batch_idx, (images, masks) in enumerate(self.train_loader):
             images = images.to(self.device)
             masks = masks.to(self.device)
+
+            # Apply GPU augmentation if enabled
+            if self.gpu_augmentation is not None:
+                with torch.no_grad():  # Augmentation doesn't need gradients
+                    images, masks = self.gpu_augmentation(images, masks)
 
             # Forward pass
             self.optimizer.zero_grad()
