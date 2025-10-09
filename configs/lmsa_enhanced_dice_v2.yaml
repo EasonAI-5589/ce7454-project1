@@ -1,0 +1,49 @@
+# 增强Dice Loss配置v2 - 突破F-Score 0.70
+
+experiment:
+  name: lmsa_enhanced_dice_v2
+  description: Strong Dice weight (2.0) to improve small object segmentation
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.1
+
+training:
+  epochs: 200
+  optimizer: AdamW
+  learning_rate: 8e-4
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: 30
+  use_amp: true
+  use_gpu_augmentation: false  # 可选,如果有kornia
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.0  # ⬆️ 从1.5增加到2.0,强化小目标
+  use_focal: false
+  use_class_weights: false
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+# 预期效果:
+# - Accuracy: 90-91% (可能略降)
+# - F-Score: 0.70-0.72 (真正提升!)
+# - 小目标分割: 明显改善
