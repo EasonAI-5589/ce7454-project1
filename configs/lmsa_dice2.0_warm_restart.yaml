@@ -1,0 +1,54 @@
+# Dice 2.0 + Warm Restarts + No Early Stop
+# Goal: 重新测试Dice 2.0，解决LR衰减和早停问题
+
+experiment:
+  name: lmsa_dice2.0_warm_restart
+  description: "Dice 2.0 with warm restarts - fix early stop and LR decay issues"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.0  # 重新测试Dice 2.0
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 8e-4
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingWarmRestarts  # 🔥 周期性重启LR
+  scheduler_params:
+    T_0: 25          # 第一次重启25轮
+    T_mult: 2        # 周期翻倍
+    eta_min: 1e-6
+  warmup_epochs: 5
+  epochs: 200        # 训练足够长
+  early_stopping_patience: 999  # 🔥 不早停！
+  max_grad_norm: 1.0
+  use_amp: true
+
+# 理由：
+# 1. 原Dice 2.0在68轮达到最佳，但98轮早停可能过早
+# 2. Warm Restarts给多次收敛机会
+# 3. 不早停，让模型充分训练200轮
+# 4. 可能Dice 2.0配合正确的LR策略会更好

@@ -1,0 +1,54 @@
+# Dice 2.5 + Warm Restarts + No Early Stop
+# Goal: 测试更激进的Dice 2.5，配合最优LR策略
+
+experiment:
+  name: lmsa_dice2.5_warm_restart_no_stop
+  description: "Dice 2.5 with warm restarts and no early stop - full exploration"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.2  # 更强正则化防止过拟合
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.5  # 激进测试
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 8e-4
+  weight_decay: 2e-4  # 更强weight decay
+  scheduler: CosineAnnealingWarmRestarts
+  scheduler_params:
+    T_0: 30          # 略长的第一周期
+    T_mult: 2
+    eta_min: 1e-6
+  warmup_epochs: 8   # 更长warmup给Dice 2.5适应
+  epochs: 200
+  early_stopping_patience: 999  # 不早停
+  max_grad_norm: 1.0
+  use_amp: true
+
+# 理由：
+# 1. Dice 2.5可能需要更长训练时间
+# 2. Warm Restarts + 不早停给充分探索机会
+# 3. 强正则化（dropout 0.2, wd 2e-4）防止过拟合
+# 4. 如果Dice 2.0能改善，2.5也值得重试
