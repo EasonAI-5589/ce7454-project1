@@ -194,17 +194,18 @@ def main():
     # Override best f-score if not resetting
     if not args.reset_optimizer:
         trainer.best_f_score = best_f_score
-        trainer.current_epoch = start_epoch
-    
+        print(f"\n⚠️  Continuing from epoch {start_epoch} with existing optimizer state")
+    else:
+        print(f"\n✅ Starting fresh training with reset optimizer (from best checkpoint)")
+
     print(f"\nStarting continued training: {config['experiment']['name']}")
     print(f"Description: {config['experiment']['description']}")
     print("="*70)
-    
+
     # Train
-    remaining_epochs = config['training']['epochs'] - start_epoch
-    print(f"\nTraining for {remaining_epochs} more epochs (epoch {start_epoch} -> {config['training']['epochs']})")
-    
-    trainer.fit(epochs=config['training']['epochs'], start_epoch=start_epoch)
+    print(f"\nTraining for {config['training']['epochs']} epochs")
+
+    trainer.fit(epochs=config['training']['epochs'])
     
     print("\n" + "="*70)
     print("Continued training completed!")
