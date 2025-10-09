@@ -16,9 +16,8 @@ from pathlib import Path
 
 from src.models.microsegformer import MicroSegFormer
 from src.dataset import create_train_val_loaders
-from src.loss import SegmentationLoss
 from src.trainer import Trainer
-from src.utils import create_optimizer, create_scheduler, create_output_dir
+from src.utils import CombinedLoss, create_optimizer, create_scheduler, create_output_dir
 
 def load_checkpoint_for_continue(checkpoint_path, model, optimizer=None, scheduler=None, reset_optimizer=False):
     """
@@ -127,12 +126,13 @@ def main():
     print(f"Val batches: {len(val_loader)}")
     
     # Loss function
-    criterion = SegmentationLoss(
-        num_classes=config['model']['num_classes'],
+    criterion = CombinedLoss(
         ce_weight=config['loss']['ce_weight'],
         dice_weight=config['loss']['dice_weight'],
-        device=device,
-        use_focal=config['loss'].get('use_focal', False)
+        class_weights=None,
+        use_focal=config['loss'].get('use_focal', False),
+        focal_alpha=config['loss'].get('focal_alpha', 0.25),
+        focal_gamma=config['loss'].get('focal_gamma', 2.0)
     )
     
     # Optimizer and scheduler
