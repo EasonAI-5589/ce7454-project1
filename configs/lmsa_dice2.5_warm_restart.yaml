@@ -1,0 +1,48 @@
+# Dice 2.5 + Cosine Warm Restarts
+# Expected: Val 0.696-0.705
+
+experiment:
+  name: lmsa_dice2.5_warm_restart
+  description: "Dice 2.5 with cosine warm restarts - multiple convergence opportunities"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.2
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.5
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 8e-4  # Standard rate for warm restart
+  weight_decay: 2e-4
+  scheduler: CosineAnnealingWarmRestarts  # NEW: Periodic restarts
+  scheduler_params:
+    T_0: 30      # First restart after 30 epochs
+    T_mult: 2    # Double period after each restart
+    eta_min: 1e-6
+  warmup_epochs: 5
+  epochs: 200
+  early_stopping_patience: 100
+  max_grad_norm: 1.0
+  use_amp: true

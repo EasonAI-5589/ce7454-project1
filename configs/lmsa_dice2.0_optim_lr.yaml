@@ -1,0 +1,48 @@
+# Dice 2.0 + Optimized LR + Warm Restarts
+# Expected: Val 0.690-0.700
+
+experiment:
+  name: lmsa_dice2.0_optim_lr
+  description: "Dice 2.0 with higher LR and warm restarts"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.0
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 1e-3  # Higher LR for faster convergence
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingWarmRestarts
+  scheduler_params:
+    T_0: 30
+    T_mult: 2
+    eta_min: 1e-6
+  warmup_epochs: 10  # Longer warmup for higher LR
+  epochs: 200
+  early_stopping_patience: 100
+  max_grad_norm: 1.0
+  use_amp: true
