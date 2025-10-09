@@ -38,7 +38,7 @@ training:
   weight_decay: 2e-4  # Higher weight decay
   scheduler: CosineAnnealingLR
   warmup_epochs: 5
-  epochs: 200  # Train longer without early stopping
-  early_stopping_patience: 999  # Disable early stopping (effectively infinite patience)
+  epochs: 200
+  early_stopping_patience: 100  # Very patient - allow full exploration
   max_grad_norm: 1.0
   use_amp: true

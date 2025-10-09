@@ -1,21 +1,16 @@
-# GPU增强配置 - 消除CPU瓶颈,提升GPU利用率
-
 experiment:
   name: lmsa_gpu_aug
   description: Use GPU-based augmentation (Kornia) for better GPU utilization
-
 model:
   name: microsegformer
   num_classes: 19
   use_lmsa: true
   dropout: 0.15
-
 data:
   root: data
   batch_size: 32
-  num_workers: 4  # 降低到4,因为增强在GPU上做
+  num_workers: 4
   val_split: 0.1
-
 training:
   epochs: 200
   optimizer: AdamW
@@ -24,17 +19,14 @@ training:
   scheduler: CosineAnnealingLR
   warmup_epochs: 5
   max_grad_norm: 1.0
-  early_stopping_patience: 30
+  early_stopping_patience: 100
   use_amp: true
-  use_gpu_augmentation: true  # 启用GPU增强
-
+  use_gpu_augmentation: true
 loss:
   ce_weight: 1.0
   dice_weight: 1.5
   use_focal: false
   use_class_weights: false
-
-# GPU augmentation配置
 gpu_augmentation:
   horizontal_flip_prob: 0.5
   rotation_degrees: 15

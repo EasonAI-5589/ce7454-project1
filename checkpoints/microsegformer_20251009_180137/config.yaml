@@ -1,0 +1,39 @@
+augmentation:
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range:
+  - 0.9
+  - 1.1
+data:
+  batch_size: 32
+  num_workers: 8
+  root: data
+  val_split: 0.1
+experiment:
+  description: Dice=2.5 with dropout 0.2 - maximum small object focus
+  name: lmsa_dice2.5_aggressive
+loss:
+  ce_weight: 1.0
+  dice_weight: 2.5
+  use_class_weights: false
+  use_focal: false
+model:
+  dropout: 0.2
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+output_dir: checkpoints/microsegformer_20251009_180137
+training:
+  early_stopping_patience: 999
+  epochs: 200
+  learning_rate: 6e-4
+  max_grad_norm: 1.0
+  optimizer: AdamW
+  scheduler: CosineAnnealingLR
+  use_amp: true
+  warmup_epochs: 5
+  weight_decay: 2e-4
