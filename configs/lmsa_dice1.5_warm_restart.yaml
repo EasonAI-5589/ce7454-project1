@@ -1,0 +1,48 @@
+# Dice 1.5 + Cosine Warm Restarts (LR优化版本)
+# Goal: 解决LR衰减过快问题，通过周期性重启探索更好的解
+
+experiment:
+  name: lmsa_dice1.5_warm_restart
+  description: "Dice 1.5 baseline with warm restarts - fix LR decay issue"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15  # 保持与最佳模型一致
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5  # 保持与最佳模型一致
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 8e-4  # 与最佳模型相同
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingWarmRestarts  # 🔥 关键改动
+  scheduler_params:
+    T_0: 25          # 第一次重启在25轮（对应原来Epoch 92附近）
+    T_mult: 2        # 之后周期翻倍：25, 50, 100
+    eta_min: 1e-6    # 最低LR
+  warmup_epochs: 5
+  epochs: 200
+  early_stopping_patience: 100
+  max_grad_norm: 1.0
+  use_amp: true

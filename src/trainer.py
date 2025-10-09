@@ -5,7 +5,7 @@ Supports early stopping, learning rate warmup, and validation
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts, LinearLR, SequentialLR
 import os
 import time
 import json
@@ -320,9 +320,10 @@ def create_optimizer(model, config):
 
 
 def create_scheduler(optimizer, config, num_epochs):
-    """Create learning rate scheduler with warmup"""
+    """Create learning rate scheduler with warmup and support for various schedulers"""
     scheduler_type = config.get('scheduler', 'CosineAnnealingLR')
     warmup_epochs = config.get('warmup_epochs', 5)
+    scheduler_params = config.get('scheduler_params', {})
 
     if warmup_epochs > 0:
         # Warmup scheduler
@@ -335,7 +336,23 @@ def create_scheduler(optimizer, config, num_epochs):
 
     # Main scheduler
     if scheduler_type == 'CosineAnnealingLR':
-        main_scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs - warmup_epochs)
+        # Support custom T_max from scheduler_params
+        T_max = scheduler_params.get('T_max', num_epochs - warmup_epochs)
+        eta_min = scheduler_params.get('eta_min', 0)
+        main_scheduler = CosineAnnealingLR(optimizer, T_max=T_max, eta_min=eta_min)
+
+    elif scheduler_type == 'CosineAnnealingWarmRestarts':
+        # New: Support for warm restarts
+        T_0 = scheduler_params.get('T_0', 30)
+        T_mult = scheduler_params.get('T_mult', 2)
+        eta_min = scheduler_params.get('eta_min', 0)
+        main_scheduler = CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=T_0,
+            T_mult=T_mult,
+            eta_min=eta_min
+        )
+
     elif scheduler_type == 'StepLR':
         step_size = config.get('step_size', 30)
         gamma = config.get('gamma', 0.1)

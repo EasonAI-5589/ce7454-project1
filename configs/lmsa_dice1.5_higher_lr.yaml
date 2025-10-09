@@ -1,0 +1,52 @@
+# Dice 1.5 + Higher Initial LR (LR优化版本)
+# Goal: 更高初始LR + 更长warmup，可能找到更好的优化路径
+
+experiment:
+  name: lmsa_dice1.5_higher_lr
+  description: "Dice 1.5 with higher LR (1e-3) and longer warmup"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 8
+  val_split: 0.1
+
+augmentation:
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range: [0.9, 1.1]
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5
+  use_focal: false
+  use_class_weights: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 1e-3  # 🔥 从8e-4提升到1e-3 (+25%)
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingLR
+  scheduler_params:
+    T_max: 150
+    eta_min: 1e-6
+  warmup_epochs: 10  # 🔥 更长warmup稳定训练
+  epochs: 200
+  early_stopping_patience: 100
+  max_grad_norm: 1.0
+  use_amp: true
+
+# 理论：
+# 更高LR可能在早期找到更好的解
+# 配合更长warmup避免训练不稳定
+# 预期更快收敛且性能更好
