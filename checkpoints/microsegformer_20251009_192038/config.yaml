@@ -1,0 +1,43 @@
+augmentation:
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+  horizontal_flip: 0.5
+  rotation: 15
+  scale_range:
+  - 0.9
+  - 1.1
+data:
+  batch_size: 32
+  num_workers: 8
+  root: data
+  val_split: 0.1
+experiment:
+  description: Dice 1.5 baseline with warm restarts - fix LR decay issue
+  name: lmsa_dice1.5_warm_restart
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5
+  use_class_weights: false
+  use_focal: false
+model:
+  dropout: 0.15
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+output_dir: checkpoints/microsegformer_20251009_192038
+training:
+  early_stopping_patience: 100
+  epochs: 200
+  learning_rate: 8e-4
+  max_grad_norm: 1.0
+  optimizer: AdamW
+  scheduler: CosineAnnealingWarmRestarts
+  scheduler_params:
+    T_0: 25
+    T_mult: 2
+    eta_min: 1e-6
+  use_amp: true
+  warmup_epochs: 5
+  weight_decay: 1e-4
