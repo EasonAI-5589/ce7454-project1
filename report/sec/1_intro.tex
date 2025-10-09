@@ -18,14 +18,16 @@ The task is to perform pixel-wise semantic segmentation on the CelebAMask-HQ dat
 
 \subsection{Our Approach}
 
-We propose MicroSegFormer, a lightweight transformer-based architecture that incorporates:
+We propose MicroSegFormer enhanced with a novel \textbf{Lightweight Multi-Scale Attention (LMSA)} module. Our key contributions include:
 
 \begin{itemize}
-    \item Efficient hierarchical transformer encoder with spatial reduction attention
+    \item \textbf{LMSA Module}: A parameter-efficient attention mechanism with parallel multi-scale convolutions (3×3, 5×5, 7×7) and SE-style channel attention, adding only 1.5\% parameters (+25,984) while improving F-Score by +0.98\%
+    \item Efficient hierarchical transformer encoder with spatial reduction attention to minimize computational cost
     \item Lightweight MLP decoder for multi-scale feature aggregation
-    \item Combined loss function (Cross-Entropy + Dice Loss) for handling class imbalance
-    \item Comprehensive data augmentation strategy including geometric and photometric transforms
-    \item Advanced optimization techniques with cosine annealing and gradient clipping
+    \item Simple yet effective loss function (Cross-Entropy + Dice, 1:1 ratio) that outperforms complex alternatives
+    \item Comprehensive data augmentation strategy for strong generalization from limited training data
 \end{itemize}
 
-Our model achieves 1,721,939 parameters (94.6\% utilization), demonstrating effective use of the parameter budget while maintaining strong segmentation performance.
+\textbf{Key Finding}: Through systematic experiments, we demonstrate that \textit{architectural improvements are more effective than specialized loss functions} for handling class imbalance. Our LMSA module's dynamic attention mechanism implicitly addresses class imbalance, making Focal Loss redundant and even harmful (performance decreased by 1.7-2.3\%).
+
+Our final model achieves 1,747,923 parameters (96.0\% utilization), 0.6819 validation F-Score, and \textbf{0.72 test F-Score}, with test performance exceeding validation by +5.6\%, demonstrating exceptional generalization.

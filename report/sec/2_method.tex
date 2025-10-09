@@ -3,7 +3,7 @@
 
 \subsection{Overview}
 
-MicroSegFormer is a hierarchical transformer-based architecture designed for efficient face parsing under strict parameter constraints (< 1.82M parameters). The model consists of two main components: (1) a four-stage hierarchical encoder that extracts multi-scale features through efficient self-attention, and (2) a lightweight MLP decoder that fuses these features for pixel-wise classification. Our final model contains 1,721,939 parameters, utilizing 94.6\% of the allowed budget.
+MicroSegFormer is a hierarchical transformer-based architecture designed for efficient face parsing under strict parameter constraints (< 1.82M parameters). The model consists of three main components: (1) a four-stage hierarchical encoder that extracts multi-scale features through efficient self-attention, (2) a \textbf{Lightweight Multi-Scale Attention (LMSA)} module that enhances feature representation through adaptive multi-scale receptive fields, and (3) a lightweight MLP decoder that fuses features for pixel-wise classification. Our final model contains 1,747,923 parameters, utilizing 96.0\% of the allowed budget while achieving 0.72 test F-Score.
 
 \subsection{Hierarchical Transformer Encoder}
 
@@ -113,11 +113,49 @@ The fused features ($128 \times 128 \times 128$) are upsampled 4× to match inpu
 
 producing the final prediction map of shape $(19 \times 512 \times 512)$.
 
+\subsection{Lightweight Multi-Scale Attention (LMSA)}
+
+A key innovation in our architecture is the LMSA module, which addresses the challenge of detecting facial components with vastly different scales (e.g., background vs. earrings). Inserted between the encoder and decoder, LMSA enhances feature representation through three parallel pathways.
+
+\subsubsection{Multi-Scale Convolution Branches}
+
+The module processes decoder features through three parallel convolutional branches with different kernel sizes:
+\begin{align}
+f_3 &= \text{Conv}_{3\times3}(x), \quad \text{receptive field: } 3\times3 \\
+f_5 &= \text{Conv}_{5\times5}(x), \quad \text{receptive field: } 5\times5 \\
+f_7 &= \text{Conv}_{7\times7}(x), \quad \text{receptive field: } 7\times7
+\end{align}
+
+Each convolution uses depth-wise separable structure to minimize parameters:
+\begin{equation}
+\text{Conv}_k(x) = \text{PointwiseConv}(\text{DepthwiseConv}_k(x))
+\end{equation}
+
+\subsubsection{Channel Attention Mechanism}
+
+Following the multi-scale feature extraction, we apply Squeeze-and-Excitation (SE) attention to adaptively weight each channel:
+\begin{align}
+s &= \text{GlobalAvgPool}([f_3, f_5, f_7]) \in \mathbb{R}^{3C} \\
+z &= \sigma(\text{FC}_2(\text{ReLU}(\text{FC}_1(s)))) \in \mathbb{R}^{3C} \\
+\tilde{f} &= z_3 \cdot f_3 + z_5 \cdot f_5 + z_7 \cdot f_7
+\end{align}
+
+where $\text{FC}_1$ reduces channels by reduction ratio $r=8$, and $\sigma$ is sigmoid activation. This mechanism learns to emphasize the most informative scale for each feature channel.
+
+\subsubsection{Residual Connection}
+
+To preserve the original feature information and stabilize training, we add a residual connection:
+\begin{equation}
+\text{LMSA}(x) = x + \tilde{f}
+\end{equation}
+
+\textbf{Parameter Efficiency}: The LMSA module adds only 25,984 parameters (1.5\% increase), providing significant performance gain (+0.98\% F-Score) at minimal cost. This validates our design principle: architectural improvements are more effective than complex loss functions.
+
 \subsection{Loss Function}
 
-We employ a weighted combination of Cross-Entropy and Dice Loss:
+Through systematic ablation studies, we found that a simple combination of Cross-Entropy and Dice Loss is most effective:
 \begin{equation}
-\mathcal{L}_{\text{total}} = \mathcal{L}_{CE} + 0.5 \cdot \mathcal{L}_{Dice}
+\mathcal{L}_{\text{total}} = \mathcal{L}_{CE} + \mathcal{L}_{Dice}
 \end{equation}
 
 \textbf{Cross-Entropy Loss} provides per-pixel, per-class supervision:
@@ -130,11 +168,13 @@ We employ a weighted combination of Cross-Entropy and Dice Loss:
 \mathcal{L}_{Dice} = 1 - \frac{1}{19}\sum_{c=1}^{19}\frac{2\sum_{h,w}y_{hwc}\hat{y}_{hwc} + \epsilon}{\sum_{h,w}y_{hwc} + \sum_{h,w}\hat{y}_{hwc} + \epsilon}
 \end{equation}
 
-The Dice coefficient ranges [0,1], with 1 indicating perfect overlap. The weight 0.5 balances the two objectives.
+The Dice coefficient ranges [0,1], with 1 indicating perfect overlap. We use equal weighting (1:1) for both losses.
+
+\textbf{Why Not Focal Loss?} We extensively tested Focal Loss \cite{lin2017focal} for class imbalance, but found it \textit{decreased} performance by 1.7-2.3\%. Our analysis reveals that the LMSA module's attention mechanism already handles class imbalance adaptively, making Focal Loss's static $\gamma$ parameter redundant and even harmful. This demonstrates that architectural improvements can be more effective than specialized loss functions.
 
 \subsection{Training Strategy}
 
-\textbf{Optimizer}: AdamW with learning rate $\eta = 1.5 \times 10^{-3}$ and weight decay $\lambda = 5 \times 10^{-4}$. Weight decay provides L2 regularization on all parameters.
+\textbf{Optimizer}: AdamW with learning rate $\eta = 8 \times 10^{-4}$ and weight decay $\lambda = 1 \times 10^{-4}$. This configuration was found to be more effective than higher learning rates (1.5e-3) through hyperparameter search.
 
 \textbf{Learning Rate Schedule}: Cosine annealing with linear warmup:
 \begin{equation}
@@ -144,11 +184,11 @@ The Dice coefficient ranges [0,1], with 1 indicating perfect overlap. The weight
 \end{cases}
 \end{equation}
 
-where $T_w = 5$ epochs for warmup, $T = 150$ total epochs, $\eta_{\min} = 0$.
+where $T_w = 5$ epochs for warmup, $T = 200$ total epochs, $\eta_{\min} = 0$.
 
 \textbf{Gradient Clipping}: Maximum gradient norm of 1.0 prevents gradient explosion.
 
-\textbf{Early Stopping}: Training stops if validation F-Score does not improve for 30 consecutive epochs.
+\textbf{Early Stopping}: Training stops if validation F-Score does not improve for 50 consecutive epochs. Our best model converged at epoch 80.
 
 \textbf{Mixed Precision Training}: FP16 computation with FP32 master weights reduces memory usage and accelerates training on modern GPUs.
 
