@@ -1,0 +1,20 @@
+continued_from: checkpoints/microsegformer_20251008_025917/best_model.pth
+previous_best_f_score: !!python/object/apply:numpy._core.multiarray.scalar
+- !!python/object/apply:numpy.dtype
+  args:
+  - f8
+  - false
+  - true
+  state: !!python/tuple
+  - 3
+  - <
+  - null
+  - null
+  - null
+  - -1
+  - -1
+  - 0
+- !!binary |
+  cpnx55HF5T8=
+reset_optimizer: true
+start_epoch: 0
