@@ -1,0 +1,36 @@
+data:
+  batch_size: 32
+  num_workers: 4
+  root: data
+  val_split: 0.1
+experiment:
+  description: LMSA with MixUp+CutMix advanced augmentation to improve generalization
+  name: lmsa_advanced_aug
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5
+  use_class_weights: false
+  use_focal: false
+model:
+  dropout: 0.15
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+output_dir: checkpoints/microsegformer_20251009_232649
+training:
+  cutmix_alpha: 1.0
+  cutmix_prob: 0.3
+  early_stopping_patience: 30
+  epochs: 200
+  learning_rate: 8e-4
+  max_grad_norm: 1.0
+  mixup_alpha: 0.2
+  mixup_prob: 0.3
+  optimizer: AdamW
+  scheduler: CosineAnnealingLR
+  use_advanced_aug: true
+  use_amp: true
+  use_cutmix: true
+  use_mixup: true
+  warmup_epochs: 5
+  weight_decay: 1e-4
