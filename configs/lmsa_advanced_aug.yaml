@@ -1,0 +1,41 @@
+experiment:
+  name: lmsa_advanced_aug
+  description: "LMSA with MixUp+CutMix advanced augmentation to improve generalization"
+
+model:
+  name: microsegformer
+  num_classes: 19
+  use_lmsa: true
+  dropout: 0.15
+
+data:
+  root: data
+  batch_size: 32
+  num_workers: 4
+  val_split: 0.1
+
+training:
+  epochs: 200
+  optimizer: AdamW
+  learning_rate: 8e-4
+  weight_decay: 1e-4
+  scheduler: CosineAnnealingLR
+  warmup_epochs: 5
+  max_grad_norm: 1.0
+  early_stopping_patience: 30
+  use_amp: true
+
+  # Advanced GPU augmentation (MixUp + CutMix)
+  use_advanced_aug: true
+  use_mixup: true
+  use_cutmix: true
+  mixup_alpha: 0.2        # Beta分布参数 (0.2推荐用于分割)
+  cutmix_alpha: 1.0       # Beta分布参数 (1.0标准值)
+  mixup_prob: 0.3         # 30%概率应用MixUp
+  cutmix_prob: 0.3        # 30%概率应用CutMix
+
+loss:
+  ce_weight: 1.0
+  dice_weight: 1.5        # 保持v3的最佳配置
+  use_focal: false
+  use_class_weights: false

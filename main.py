@@ -15,6 +15,7 @@ from src.dataset import create_train_val_loaders
 from src.models.microsegformer import MicroSegFormer
 from src.models.unet import UNet
 from src.utils import CombinedLoss
+from src.gpu_augmentation_torch import CombinedAdvancedAugmentation
 
 
 def load_config(config_path):
@@ -141,6 +142,21 @@ def main():
         yaml.dump(config, f, default_flow_style=False)
     print(f"Config saved to: {config_path}")
 
+    # Setup GPU augmentation (MixUp + CutMix)
+    gpu_augmentation = None
+    if config['training'].get('use_advanced_aug', False):
+        print("\nSetting up advanced GPU augmentation...")
+        gpu_augmentation = CombinedAdvancedAugmentation(
+            use_mixup=config['training'].get('use_mixup', True),
+            use_cutmix=config['training'].get('use_cutmix', True),
+            mixup_alpha=config['training'].get('mixup_alpha', 0.2),
+            cutmix_alpha=config['training'].get('cutmix_alpha', 1.0),
+            mixup_prob=config['training'].get('mixup_prob', 0.3),
+            cutmix_prob=config['training'].get('cutmix_prob', 0.3)
+        )
+        print(f"  MixUp enabled: {config['training'].get('use_mixup', True)} (prob={config['training'].get('mixup_prob', 0.3)})")
+        print(f"  CutMix enabled: {config['training'].get('use_cutmix', True)} (prob={config['training'].get('cutmix_prob', 0.3)})")
+
     # Setup trainer
     trainer = Trainer(
         model=model,
@@ -150,7 +166,8 @@ def main():
         optimizer=optimizer,
         scheduler=scheduler,
         config=config,
-        device=device
+        device=device,
+        gpu_augmentation=gpu_augmentation
     )
 
     # Load checkpoint if resuming
